@@ -1,5 +1,5 @@
 TESTDLL   = packet.dll
-IMPORTS   = packet user32
+IMPORTS   = packet iphlpapi user32
 
 C_SRCS = \
 	packet.c
