@@ -1,0 +1,7 @@
+TESTDLL   = packet.dll
+IMPORTS   = packet user32
+
+C_SRCS = \
+	packet.c
+
+@MAKE_TEST_RULES@
