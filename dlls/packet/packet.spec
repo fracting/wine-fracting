@@ -1,4 +1,4 @@
-1 stub PacketAllocatePacket
+1 cdecl PacketAllocatePacket()
 2 stub PacketCloseAdapter
 3 stub PacketFreePacket
 4 stub PacketGetAdapterNames

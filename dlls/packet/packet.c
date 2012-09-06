@@ -7,6 +7,8 @@
 #include "winbase.h"
 #include "wine/debug.h"
 
+#include "packet32.h"
+
 WINE_DEFAULT_DEBUG_CHANNEL(packet);
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
@@ -23,4 +25,10 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     }
 
     return TRUE;
+}
+
+LPPACKET PacketAllocatePacket(void)
+{
+    FIXME("stub!\n");
+    return NULL;
 }

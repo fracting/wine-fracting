@@ -439,6 +439,7 @@ SRCDIR_INCLUDES = \
 	oledberr.h \
 	oledlg.h \
 	opnrst.idl \
+	packet32.h \
 	patchapi.h \
 	pdh.h \
 	pdhmsg.h \
