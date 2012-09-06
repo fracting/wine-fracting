@@ -7,6 +7,7 @@
 #include "winbase.h"
 #include "wine/debug.h"
 
+#include "iphlpapi.h"
 #include "packet32.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(packet);
@@ -40,7 +41,48 @@ VOID PacketFreePacket(PACKET *packet)
 
 BOOLEAN PacketGetAdapterNames(char *buffer, DWORD *size)
 {
-    FIXME("buffer %p, size %p\n", buffer, size);
+    IP_ADAPTER_INFO *adapter, *adapter_list = NULL;
+    DWORD infolen = 0, size_desc= 0, size_name = 0, size_total = 0, desc_offset = 0;
 
-    return FALSE;
+    TRACE("buffer %p, size %p, *size %d\n", buffer, size, *size);
+
+    GetAdaptersInfo(adapter_list, &infolen);
+    if (infolen == 0)
+    {
+        SetLastError(ERROR_INSUFFICIENT_BUFFER);
+        return FALSE;
+    }
+    adapter_list = HeapAlloc(GetProcessHeap(), 0, infolen);
+    GetAdaptersInfo(adapter_list, &infolen);
+
+    for (adapter = adapter_list; adapter != NULL; adapter = adapter->Next)
+    {
+        size_name += lstrlenA(adapter->AdapterName) + 1;
+        size_desc += lstrlenA(adapter->Description) + 1;;
+    }
+    size_total = size_name + size_desc + 2;
+
+    if (!buffer || *size < size_total)
+    {
+        *size = size_total;
+        SetLastError(ERROR_INSUFFICIENT_BUFFER);
+        return FALSE;
+    }
+
+    desc_offset = size_name + 1;
+    size_name = 0;
+    size_desc = 0;
+    for (adapter = adapter_list; adapter != NULL; adapter = adapter->Next)
+    {
+        lstrcpyA(buffer + size_name, adapter->AdapterName);
+        lstrcpyA(buffer + desc_offset + size_desc, adapter->Description);
+        size_name += lstrlenA(adapter->AdapterName) + 1;
+        size_desc += lstrlenA(adapter->Description) + 1;
+    }
+    buffer[size_name] = 0;
+    buffer[size_total - 1] = 0;
+
+    HeapFree(GetProcessHeap(), 0, adapter_list);
+
+    return TRUE;
 }
