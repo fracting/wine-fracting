@@ -9,3 +9,4 @@ typedef struct _PACKET {
 
 LPPACKET PacketAllocatePacket(void);
 VOID PacketFreePacket(PACKET *packet);
+BOOLEAN PacketGetAdapterNames(char *buffer, DWORD *size);

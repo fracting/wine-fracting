@@ -37,3 +37,10 @@ VOID PacketFreePacket(PACKET *packet)
     TRACE("free packet %p\n", packet);
     HeapFree(GetProcessHeap(), 0, packet);
 }
+
+BOOLEAN PacketGetAdapterNames(char *buffer, DWORD *size)
+{
+    FIXME("buffer %p, size %p\n", buffer, size);
+
+    return FALSE;
+}

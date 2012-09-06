@@ -1,7 +1,7 @@
 1 cdecl PacketAllocatePacket()
 2 stub PacketCloseAdapter
 3 cdecl PacketFreePacket(ptr)
-4 stub PacketGetAdapterNames
+4 cdecl PacketGetAdapterNames(str long)
 5 stub PacketGetAirPcapHandle
 6 stub PacketGetDriverVersion
 7 stub PacketGetNetInfoEx
