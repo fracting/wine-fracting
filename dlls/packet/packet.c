@@ -32,3 +32,8 @@ LPPACKET PacketAllocatePacket(void)
     FIXME("stub!\n");
     return NULL;
 }
+
+VOID PacketFreePacket(PACKET *packet)
+{
+    FIXME("stub %p\n", packet);
+}

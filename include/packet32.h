@@ -8,3 +8,4 @@ typedef struct _PACKET {
 }  PACKET, *LPPACKET;
 
 LPPACKET PacketAllocatePacket(void);
+VOID PacketFreePacket(PACKET *packet);
