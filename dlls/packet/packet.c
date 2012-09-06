@@ -29,8 +29,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 LPPACKET PacketAllocatePacket(void)
 {
-    FIXME("stub!\n");
-    return NULL;
+    return HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(PACKET));
 }
 
 VOID PacketFreePacket(PACKET *packet)
