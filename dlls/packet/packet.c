@@ -34,5 +34,6 @@ LPPACKET PacketAllocatePacket(void)
 
 VOID PacketFreePacket(PACKET *packet)
 {
-    FIXME("stub %p\n", packet);
+    TRACE("free packet %p\n", packet);
+    HeapFree(GetProcessHeap(), 0, packet);
 }
