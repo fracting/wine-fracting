@@ -13,7 +13,7 @@
 13 stub PacketInitPacket
 14 stub PacketIsDumpEnded
 15 stub PacketLibraryVersion
-16 stub PacketOpenAdapter
+16 cdecl PacketOpenAdapter(str)
 17 stub PacketReceivePacket
 18 stub PacketRequest
 19 stub PacketSendPacket

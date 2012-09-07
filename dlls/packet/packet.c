@@ -86,3 +86,10 @@ BOOLEAN PacketGetAdapterNames(char *buffer, DWORD *size)
 
     return TRUE;
 }
+
+LPADAPTER PacketOpenAdapter(char *adapter_name)
+{
+    FIXME("adapter_name: %s\n", adapter_name);
+
+    return NULL;
+}
