@@ -2,6 +2,7 @@
 
 #include <windef.h>
 #include <winbase.h>
+#include <windows.h>
 #include <stdio.h>
 #include <iphlpapi.h>
 #include <packet32.h>
@@ -147,8 +148,72 @@ void test_PacketGetAdapterNames(void)
     }
 }
 
+void test_PacketOpenAdapter(void)
+{
+    ADAPTER *adapter;
+    DWORD ret, size, len;
+    char fake_adapterA[] = "fake", *buffer, *ptr;
+    WCHAR fake_adapterW[] = {'f','a','k','e',0}, *nameW;
+
+    SetLastError(0xdeadbeef);
+    adapter = PacketOpenAdapter(fake_adapterA);
+    ok(adapter == NULL, "expect NULL, return %p.\n", adapter);
+    ret = GetLastError();
+    ok(ret == ERROR_BAD_UNIT, "expect ERROR_BAD_UNIT, returned %x.\n", ret);
+
+    SetLastError(0xdeadbeef);
+    adapter = PacketOpenAdapter((char *)fake_adapterW);
+    ok(adapter == NULL, "expect NULL, return %p.\n", adapter);
+    ret = GetLastError();
+    ok(ret == ERROR_BAD_UNIT, "expect ERROR_BAD_UNIT, returned %x.\n", ret);
+
+    PacketGetAdapterNames(NULL, &size);
+    if (size > 0)
+    {
+        buffer = HeapAlloc(GetProcessHeap(), 0, size);
+        ret = PacketGetAdapterNames(buffer, &size);
+        ptr = buffer;
+        do
+        {
+           len = lstrlenA(ptr);
+
+           adapter = PacketOpenAdapter(ptr);
+           ok(adapter != NULL, "adapter should not be NULL.\n");
+           if(!adapter) break;
+           trace("adapter %p : %p, %s, %d, %d, %s, %p, %d\n", adapter, adapter->hFile, adapter->SymbolicLink, adapter->NumWrites, adapter->ReadTimeOut, adapter->Name, adapter->pWanAdapter, adapter->Flags);
+           ok(adapter->SymbolicLink[0] == 0, "expect empty str, returned %s.\n", adapter->SymbolicLink);
+           ok(adapter->NumWrites == 1, "expect 1, returned %d.\n", adapter->NumWrites);
+           ok(adapter->ReadTimeOut == 0, "expect 0, returned %d.\n", adapter->ReadTimeOut);
+           ok(!lstrcmpA(ptr, adapter->Name), "expect %s, returned %s.\n", ptr, adapter->Name);
+           ok(adapter->pWanAdapter == NULL, "expect NULL, returned %p.\n", adapter->pWanAdapter);
+           ok(adapter->Flags == 0, "expect 0, returned %d.\n", adapter->Flags);
+           PacketCloseAdapter(adapter);
+
+           nameW = HeapAlloc(GetProcessHeap(), 0, len * sizeof(WCHAR));
+           MultiByteToWideChar(CP_ACP, 0, ptr, -1, nameW, len + 1);
+           adapter = PacketOpenAdapter((char *)nameW);
+           ok(adapter != NULL, "adapter should not be NULL.\n");
+           if(!adapter) break;
+           trace("adapter %p : %p, %s, %d, %d, %s, %p, %d\n", adapter, adapter->hFile, adapter->SymbolicLink, adapter->NumWrites, adapter->ReadTimeOut, adapter->Name, adapter->pWanAdapter, adapter->Flags);
+           ok(adapter->SymbolicLink[0] == 0, "expect empty str, returned %s.\n", adapter->SymbolicLink);
+           ok(adapter->NumWrites == 1, "expect 1, returned %d.\n", adapter->NumWrites);
+           ok(adapter->ReadTimeOut == 0, "expect 0, returned %d.\n", adapter->ReadTimeOut);
+           ok(!lstrcmpA(ptr, adapter->Name), "expect %s, returned %s.\n", ptr, adapter->Name);
+           ok(adapter->pWanAdapter == NULL, "expect NULL, returned %p.\n", adapter->pWanAdapter);
+           ok(adapter->Flags == 0, "expect 0, returned %d.\n", adapter->Flags);
+           PacketCloseAdapter(adapter);
+           HeapFree(GetProcessHeap(), 0, nameW);
+
+           ptr += len + 1;
+        } while (*ptr != '\0');
+
+        HeapFree(GetProcessHeap(), 0, buffer);
+    }
+}
+
 START_TEST( packet )
 {
     test_PacketAllocatePacket();
     test_PacketGetAdapterNames();
+    test_PacketOpenAdapter();
 }
