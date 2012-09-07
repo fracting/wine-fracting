@@ -5,10 +5,14 @@
 
 #include "windef.h"
 #include "winbase.h"
+#include "windows.h"
 #include "wine/debug.h"
 
 #include "iphlpapi.h"
 #include "packet32.h"
+#include "packet_private.h"
+
+#include <pcap/pcap.h>
 
 WINE_DEFAULT_DEBUG_CHANNEL(packet);
 
@@ -89,7 +93,58 @@ BOOLEAN PacketGetAdapterNames(char *buffer, DWORD *size)
 
 LPADAPTER PacketOpenAdapter(char *adapter_name)
 {
-    FIXME("adapter_name: %s\n", adapter_name);
+    ADAPTER *adapter = NULL;
+    ADAPTER_EX *adapter_ex = NULL;
+    char *adapter_nameA = NULL;
+    char errbuf[PCAP_ERRBUF_SIZE];
+    BOOL is_wstr = (adapter_name[1] == 0);
+
+    /* FIXME /DEVICE/NPF_ prefix */
+    if (is_wstr)
+    {
+        int size = lstrlenW((WCHAR *)adapter_name) + 1;
+
+        TRACE("wstr: %s\n", wine_dbgstr_w((WCHAR *)adapter_name));
+        adapter_nameA = HeapAlloc(GetProcessHeap(), 0, size);
+        if (!adapter_nameA)
+        {
+            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+            return NULL;
+        }
+        WideCharToMultiByte(CP_ACP, 0, (WCHAR *)adapter_name, -1, adapter_nameA, size, NULL, FALSE);
+    }
+    else
+    {
+        TRACE("str: %s\n", adapter_name);
+        adapter_nameA = adapter_name;
+    }
+
+    adapter_ex = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(ADAPTER_EX));
+    if (!adapter_ex)
+    {
+        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+        return NULL;
+    }
+
+    adapter_ex->pcap_handle = pcap_open_live(adapter_nameA, 65536, 1, 10000, errbuf);
+    if (adapter_ex->pcap_handle == NULL)
+    {
+        ERR("pcap_open_live error: %s \n", errbuf);
+        SetLastError(ERROR_BAD_UNIT);
+        HeapFree(GetProcessHeap(), 0, adapter_ex);
+        return NULL;
+    }
+    else
+    {
+        adapter = (ADAPTER *) adapter_ex;
+        lstrcpyA(adapter->Name, adapter_nameA);
+        adapter->NumWrites = 1;
+
+        if (is_wstr)
+            HeapFree(GetProcessHeap(), 0, adapter_nameA);
+
+        return adapter;
+    }
 
     return NULL;
 }

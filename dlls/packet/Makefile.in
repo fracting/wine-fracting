@@ -1,6 +1,7 @@
 MODULE    = packet.dll
 IMPORTLIB = packet
 DELAYIMPORTS = iphlpapi user32
+EXTRALIBS = -lpcap
 
 C_SRCS = \
 	packet.c

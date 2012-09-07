@@ -1,3 +1,6 @@
+#ifndef PACKET32
+#define PACKET32
+
 #define MAX_LINK_NAME_LENGTH 64
 #define ADAPTER_NAME_LENGTH 256 + 12
 
@@ -29,3 +32,5 @@ VOID PacketFreePacket(PACKET *packet);
 BOOLEAN PacketGetAdapterNames(char *buffer, DWORD *size);
 LPADAPTER PacketOpenAdapter(char *adapter_name);
 VOID PacketCloseAdapter(ADAPTER *adapter);
+
+#endif /* PACKET32 */
