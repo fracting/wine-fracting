@@ -93,3 +93,8 @@ LPADAPTER PacketOpenAdapter(char *adapter_name)
 
     return NULL;
 }
+
+VOID PacketCloseAdapter(ADAPTER *adapter)
+{
+    FIXME("adapter: %p\n", adapter);
+}

@@ -28,3 +28,4 @@ LPPACKET PacketAllocatePacket(void);
 VOID PacketFreePacket(PACKET *packet);
 BOOLEAN PacketGetAdapterNames(char *buffer, DWORD *size);
 LPADAPTER PacketOpenAdapter(char *adapter_name);
+VOID PacketCloseAdapter(ADAPTER *adapter);
