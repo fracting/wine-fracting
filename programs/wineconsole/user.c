@@ -431,45 +431,15 @@ HFONT WCUSER_CopyFont(struct config_data* config, HWND hWnd, const LOGFONTW* lf,
     TEXTMETRICW tm;
     HDC         hDC;
     HFONT       hFont, hOldFont;
-    int         w, i, buf[256];
+    int         w;
 
     if (!(hDC = GetDC(hWnd))) return NULL;
     if (!(hFont = CreateFontIndirectW(lf))) goto err1;
 
     hOldFont = SelectObject(hDC, hFont);
     GetTextMetricsW(hDC, &tm);
+    if (!GetCharWidth32W(hDC, tm.tmFirstChar, tm.tmFirstChar, &w)) goto err;
 
-    /* FIXME:
-     * the current freetype engine (at least 2.0.x with x <= 8) and its implementation
-     * in Wine don't return adequate values for fixed fonts
-     * In Windows, those fonts are expected to return the same value for
-     *  - the average width
-     *  - the largest width
-     *  - the width of all characters in the font
-     * This isn't true in Wine. As a temporary workaround, we get as the width of the
-     * cell, the width of the first character in the font, after checking that all
-     * characters in the font have the same width (I hear paranoia coming)
-     * when this gets fixed, the code should be using tm.tmAveCharWidth
-     * or tm.tmMaxCharWidth as the cell width.
-     */
-    GetCharWidth32W(hDC, tm.tmFirstChar, tm.tmFirstChar, &w);
-    for (i = tm.tmFirstChar + 1; i <= tm.tmLastChar; i += sizeof(buf) / sizeof(buf[0]))
-    {
-        int j, k;
-
-        k = min(tm.tmLastChar - i, sizeof(buf) / sizeof(buf[0]) - 1);
-        GetCharWidth32W(hDC, i, i + k, buf);
-        for (j = 0; j <= k; j++)
-        {
-            if (buf[j] != w)
-            {
-                WINE_WARN("Non uniform cell width: [%d]=%d [%d]=%d\n"
-                          "This may be caused by old freetype libraries, >= 2.0.8 is recommended\n",
-                          i + j, buf[j], tm.tmFirstChar, w);
-                goto err;
-            }
-        }
-    }
     SelectObject(hDC, hOldFont);
     ReleaseDC(hWnd, hDC);
 
