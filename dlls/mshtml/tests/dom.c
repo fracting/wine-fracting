@@ -8049,6 +8049,32 @@ static void test_null_write(IHTMLDocument2 *doc)
        "Expected IHTMLDocument2::writeln to return S_OK, got 0x%08x\n", hres);
 }
 
+static void test_boolean_write(IHTMLDocument2 *doc)
+{
+    SAFEARRAYBOUND dim;
+    SAFEARRAY *sa;
+    VARIANT *var;
+    HRESULT hres;
+    IHTMLElement *body;
+
+    dim.lLbound = 0;
+    dim.cElements = 2;
+    sa = SafeArrayCreate(VT_VARIANT, 1, &dim);
+    SafeArrayAccessData(sa, (void**)&var);
+    V_VT(var) = VT_BOOL;
+    V_BOOL(var) = VARIANT_TRUE;
+    V_VT(var+1) = VT_BOOL;
+    V_BOOL(var+1) = VARIANT_FALSE;
+    SafeArrayUnaccessData(sa);
+
+    hres = IHTMLDocument2_write(doc, sa);
+    ok(hres == S_OK, "write failed: %08x\n", hres);
+
+    body = doc_get_body(doc);
+    test_elem_innertext(body, "TrueFalse");
+    SafeArrayDestroy(sa);
+}
+
 static void test_create_stylesheet(IHTMLDocument2 *doc)
 {
     IHTMLStyleSheet *stylesheet, *stylesheet2;
@@ -8642,6 +8668,7 @@ START_TEST(dom)
     run_domtest(doc_blank, test_create_elems);
     run_domtest(doc_blank, test_defaults);
     run_domtest(doc_blank, test_null_write);
+    run_domtest(doc_blank, test_boolean_write);
     run_domtest(emptydiv_str, test_create_stylesheet);
     run_domtest(indent_test_str, test_indent);
     run_domtest(cond_comment_str, test_cond_comment);
