@@ -296,6 +296,13 @@ HRESULT WINAPI AtlIPersistPropertyBag_Load(LPPROPERTYBAG pPropBag, LPERRORLOG pE
     return S_OK;
 }
 
+HRESULT WINAPI AtlIPersistPropertyBag_Save(LPPROPERTYBAG pPropBag, BOOL fClearDirty, BOOL fSaveAllProperties,
+                                           ATL_PROPMAP_ENTRY *pMap, void *pThis, IUnknown *pUnk)
+{
+
+    FIXME("(%p, %x, %x, %p, %p, %p)\n", pPropBag, fClearDirty, fSaveAllProperties, pMap, pThis, pUnk);
+    return S_OK;
+}
 /***********************************************************************
  *           AtlModuleAddTermFunc            [atl100.@]
  */
