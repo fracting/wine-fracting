@@ -1,5 +1,5 @@
 before_script:
-  - sudo apt-add-repository -y ppa:ehoover/compholio
+  - sudo apt-add-repository -y ppa:pipelight/stable
   - sudo apt-get update
   - sudo apt-get install ia32-libs-dev
 
