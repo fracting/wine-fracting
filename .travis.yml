@@ -7,5 +7,6 @@ language: c
 
 script:
   - ./configure --enable-win64
-  - make
-  - make test
+  - make depend -j4
+  - make -j4
+  - make -k -j4 test
