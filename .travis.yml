@@ -6,6 +6,6 @@ before_script:
 language: c
 
 script:
-  - configure --enable-win64
+  - ./configure --enable-win64
   - make
   - make test
