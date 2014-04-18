@@ -1,6 +1,11 @@
 before_script:
-  - sudo apt-add-repository -y ppa:pipelight/stable
+  - sudo apt-add-repository -y ppa:ubuntu-wine/ppa
   - sudo apt-get update
-  - sudo apt-get install ia32-libs-dev
+  - sudo apt-get build-dep wine-1.6
 
 language: c
+
+script:
+  - configure --enable-win64
+  - make
+  - make test
