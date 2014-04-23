@@ -702,7 +702,12 @@ HIMC WINAPI ImmCreateContext(void)
     if (!new_context->immKbd->pImeSelect(new_context, TRUE))
     {
         TRACE("Selection of IME failed\n");
-        IMM_DestroyContext(new_context);
+        ImmDestroyIMCC(new_context->IMC.hCompStr);
+        ImmDestroyIMCC(new_context->IMC.hCandInfo);
+        ImmDestroyIMCC(new_context->IMC.hGuideLine);
+        ImmDestroyIMCC(new_context->IMC.hPrivate);
+        ImmDestroyIMCC(new_context->IMC.hMsgBuf);
+        HeapFree(GetProcessHeap(),0,new_context);
         return 0;
     }
     SendMessageW(GetFocus(), WM_IME_SELECT, TRUE, (LPARAM)GetKeyboardLayout(0));
