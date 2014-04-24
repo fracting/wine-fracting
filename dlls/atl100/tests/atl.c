@@ -32,6 +32,254 @@
 
 #include <wine/test.h>
 
+#define DEFINE_EXPECT(func) \
+    static BOOL expect_ ## func = FALSE, called_ ## func = FALSE
+
+#define SET_EXPECT(func) \
+    do { called_ ## func = FALSE; expect_ ## func = TRUE; } while(0)
+
+#define CHECK_EXPECT2(func) \
+    do { \
+        ok(expect_ ##func, "unexpected call " #func "\n"); \
+        called_ ## func = TRUE; \
+    }while(0)
+
+#define CHECK_EXPECT(func) \
+    do { \
+        CHECK_EXPECT2(func); \
+        expect_ ## func = FALSE; \
+    }while(0)
+
+#define CHECK_CALLED(func) \
+    do { \
+        ok(called_ ## func, "expected " #func "\n"); \
+        expect_ ## func = called_ ## func = FALSE; \
+    }while(0)
+
+#define CLEAR_CALLED(func) \
+    expect_ ## func = called_ ## func = FALSE
+
+DEFINE_EXPECT(DoVerb);
+DEFINE_EXPECT(SetExtent);
+DEFINE_EXPECT(GetExtent);
+DEFINE_EXPECT(SetClientSite);
+DEFINE_EXPECT(SetClientSite_NULL);
+DEFINE_EXPECT(SetHostNames);
+DEFINE_EXPECT(Close);
+DEFINE_EXPECT(GetMiscStatus);
+DEFINE_EXPECT(Advise);
+DEFINE_EXPECT(Unadvise);
+
+static const IOleObjectVtbl OleObjectVtbl;
+static IOleObject OleObject = { &OleObjectVtbl };
+static IOleClientSite *client_site;
+
+static HRESULT WINAPI OleObject_QueryInterface(IOleObject *iface, REFIID riid, void **ppv)
+{
+    if(IsEqualGUID(&IID_IUnknown, riid) || IsEqualGUID(&IID_IOleObject, riid))
+        *ppv = &OleObject;
+    else
+        return E_NOINTERFACE;
+
+    IUnknown_AddRef((IUnknown*)*ppv);
+    return S_OK;
+}
+
+static LONG oleobj_cnt;
+static ULONG WINAPI OleObject_AddRef(IOleObject *iface)
+{
+    return ++oleobj_cnt;
+}
+
+static ULONG WINAPI OleObject_Release(IOleObject *iface)
+{
+    return --oleobj_cnt;
+}
+
+static HRESULT WINAPI OleObject_SetClientSite(IOleObject *iface, IOleClientSite *pClientSite)
+{
+    if(!pClientSite) {
+        CHECK_EXPECT(SetClientSite_NULL);
+        return S_OK;
+    }
+
+    CHECK_EXPECT(SetClientSite);
+
+    IOleClientSite_AddRef(pClientSite);
+    client_site = pClientSite;
+    return S_OK;
+}
+
+static HRESULT WINAPI OleObject_GetClientSite(IOleObject *iface, IOleClientSite **ppClientSite)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_SetHostNames(IOleObject *iface, LPCOLESTR szContainerApp, LPCOLESTR szContainerObj)
+{
+    CHECK_EXPECT(SetHostNames);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_Close(IOleObject *iface, DWORD dwSaveOption)
+{
+    CHECK_EXPECT(Close);
+
+    ok(dwSaveOption == OLECLOSE_NOSAVE, "dwSaveOption = %d\n", dwSaveOption);
+    return S_OK;
+}
+
+static HRESULT WINAPI OleObject_SetMoniker(IOleObject *iface, DWORD dwWhichMoniker, IMoniker *pmk)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_GetMoniker(IOleObject *iface, DWORD dwAssign, DWORD dwWhichMoniker, IMoniker **ppmk)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_InitFromData(IOleObject *iface, IDataObject *pDataObject, BOOL fCreation,
+        DWORD dwReserved)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_GetClipboardData(IOleObject *iface, DWORD dwReserved, IDataObject **ppDataObject)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_DoVerb(IOleObject *iface, LONG iVerb, LPMSG lpmsg, IOleClientSite *pActiveSite,
+        LONG lindex, HWND hwndParent, LPCRECT lprcPosRect)
+{
+    HRESULT hres;
+    IOleInPlaceSiteEx *ip_site;
+
+    CHECK_EXPECT(DoVerb);
+
+    ok(iVerb == OLEIVERB_INPLACEACTIVATE, "iVerb = %d\n", iVerb);
+    ok(!lpmsg, "lpmsg != NULL\n");
+    ok(pActiveSite != NULL, "pActiveSite == NULL\n");
+    ok(!lindex, "lindex = %d\n", lindex);
+    ok(lprcPosRect != NULL, "lprcPosRect == NULL\n");
+
+    hres = IOleClientSite_QueryInterface(pActiveSite, &IID_IOleInPlaceSiteEx, (void**)&ip_site);
+    ok(hres == S_OK, "Could not get IOleInPlaceSiteEx iface: %08x\n", hres);
+
+    hres = IOleInPlaceSiteEx_CanInPlaceActivate(ip_site);
+    ok(hres == S_OK, "CanInPlaceActivate failed: %08x\n", hres);
+
+    return S_OK;
+}
+
+static HRESULT WINAPI OleObject_EnumVerbs(IOleObject *iface, IEnumOLEVERB **ppEnumOleVerb)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_Update(IOleObject *iface)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_IsUpToDate(IOleObject *iface)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_GetUserClassID(IOleObject *iface, CLSID *pClsid)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_GetUserType(IOleObject *iface, DWORD dwFormOfType, LPOLESTR *pszUserType)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_SetExtent(IOleObject *iface, DWORD dwDrawAspect, SIZEL *psizel)
+{
+    CHECK_EXPECT(SetExtent);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_GetExtent(IOleObject *iface, DWORD dwDrawAspect, SIZEL *psizel)
+{
+    CHECK_EXPECT(GetExtent);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_Advise(IOleObject *iface, IAdviseSink *pAdvSink, DWORD *pdwConnection)
+{
+    CHECK_EXPECT(Advise);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_Unadvise(IOleObject *iface, DWORD dwConnection)
+{
+    CHECK_EXPECT(Unadvise);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_EnumAdvise(IOleObject *iface, IEnumSTATDATA **ppenumAdvise)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObject_GetMiscStatus(IOleObject *iface, DWORD dwAspect, DWORD *pdwStatus)
+{
+    CHECK_EXPECT(GetMiscStatus);
+    ok(dwAspect == DVASPECT_CONTENT, "dwAspect = %d\n", dwAspect);
+    ok(pdwStatus != NULL, "pdwStatus == NULL\n");
+    *pdwStatus = OLEMISC_SETCLIENTSITEFIRST|OLEMISC_ACTIVATEWHENVISIBLE
+        |OLEMISC_INSIDEOUT|OLEMISC_CANTLINKINSIDE|OLEMISC_RECOMPOSEONRESIZE;
+    return S_OK;
+}
+
+static HRESULT WINAPI OleObject_SetColorScheme(IOleObject *iface, LOGPALETTE *pLogpal)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static const IOleObjectVtbl OleObjectVtbl = {
+    OleObject_QueryInterface,
+    OleObject_AddRef,
+    OleObject_Release,
+    OleObject_SetClientSite,
+    OleObject_GetClientSite,
+    OleObject_SetHostNames,
+    OleObject_Close,
+    OleObject_SetMoniker,
+    OleObject_GetMoniker,
+    OleObject_InitFromData,
+    OleObject_GetClipboardData,
+    OleObject_DoVerb,
+    OleObject_EnumVerbs,
+    OleObject_Update,
+    OleObject_IsUpToDate,
+    OleObject_GetUserClassID,
+    OleObject_GetUserType,
+    OleObject_SetExtent,
+    OleObject_GetExtent,
+    OleObject_Advise,
+    OleObject_Unadvise,
+    OleObject_EnumAdvise,
+    OleObject_GetMiscStatus,
+    OleObject_SetColorScheme
+};
 static const GUID CLSID_Test =
     {0x178fc163,0x0000,0x0000,{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x46}};
 #define CLSID_TEST_STR "178fc163-0000-0000-0000-000000000046"
@@ -833,6 +1081,54 @@ static void test_AtlAxAttachControl(void)
     DestroyWindow(hwnd);
 }
 
+static void test_AtlAxAttachControl2(void)
+{
+    HWND hwnd = create_container_window();
+    IUnknown *control = (IUnknown *)&OleObject;
+    IUnknown *container;
+    HRESULT hr;
+
+    SET_EXPECT(DoVerb);
+    SET_EXPECT(SetHostNames);
+    SET_EXPECT(SetExtent);
+    SET_EXPECT(SetClientSite);
+    container = NULL;
+    hr = AtlAxAttachControl(control, NULL, &container);
+    ok(hr == S_FALSE, "Expected AtlAxAttachControl to return S_FALSE, got 0x%08x\n", hr);
+    ok(container != NULL, "Expected not NULL!\n");
+    todo_wine CHECK_EXPECT(DoVerb);
+    todo_wine CHECK_EXPECT(SetHostNames);
+    todo_wine CHECK_EXPECT(SetExtent);
+    todo_wine CHECK_EXPECT(SetClientSite);
+
+    SET_EXPECT(GetMiscStatus);
+    SET_EXPECT(SetClientSite);
+    SET_EXPECT(Advise);
+    SET_EXPECT(SetHostNames);
+    SET_EXPECT(SetExtent);
+    SET_EXPECT(GetExtent);
+    SET_EXPECT(DoVerb);
+    container = NULL;
+    hr = AtlAxAttachControl(control, hwnd, &container);
+    ok(hr == S_OK, "Expected AtlAxAttachControl to return S_OK, got 0x%08x\n", hr);
+    ok(container != NULL, "Expected not NULL!\n");
+    todo_wine CHECK_CALLED(GetMiscStatus);
+    CHECK_CALLED(SetClientSite);
+    todo_wine CHECK_CALLED(Advise);
+    CHECK_CALLED(SetHostNames);
+    CHECK_CALLED(SetExtent);
+    todo_wine CHECK_CALLED(GetExtent);
+    CHECK_CALLED(DoVerb);
+
+    SET_EXPECT(Unadvise);
+    SET_EXPECT(Close);
+    SET_EXPECT(SetClientSite_NULL);
+    DestroyWindow(hwnd);
+    todo_wine CHECK_CALLED(Unadvise);
+    CHECK_CALLED(Close);
+    CHECK_CALLED(SetClientSite_NULL);
+}
+
 START_TEST(atl)
 {
     if (!register_class())
@@ -847,6 +1143,7 @@ START_TEST(atl)
     test_source_iface();
     test_ax_win();
     test_AtlAxAttachControl();
+    test_AtlAxAttachControl2();
 
     CoUninitialize();
 }
