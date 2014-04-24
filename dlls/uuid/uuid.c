@@ -87,6 +87,7 @@ DEFINE_GUID(GUID_NULL,0,0,0,0,0,0,0,0,0,0,0);
 #include "tlogstg.h"
 #include "msdasc.h"
 #include "netcfgx.h"
+#include "wmp.h"
 
 /* FIXME: cguids declares GUIDs but does not define their values */
 
