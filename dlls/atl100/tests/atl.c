@@ -59,6 +59,8 @@
 #define CLEAR_CALLED(func) \
     expect_ ## func = called_ ## func = FALSE
 
+DEFINE_EXPECT(FreezeEvents_TRUE);
+DEFINE_EXPECT(FreezeEvents_FALSE);
 DEFINE_EXPECT(DoVerb);
 DEFINE_EXPECT(SetExtent);
 DEFINE_EXPECT(GetExtent);
@@ -66,34 +68,260 @@ DEFINE_EXPECT(SetClientSite);
 DEFINE_EXPECT(SetClientSite_NULL);
 DEFINE_EXPECT(SetHostNames);
 DEFINE_EXPECT(Close);
+DEFINE_EXPECT(InPlaceObject_GetWindow);
+DEFINE_EXPECT(SetObjectRects);
+DEFINE_EXPECT(InPlaceDeactivate);
+DEFINE_EXPECT(UIDeactivate);
 DEFINE_EXPECT(GetMiscStatus);
+DEFINE_EXPECT(SetAdvise);
+DEFINE_EXPECT(GetViewStatus);
+DEFINE_EXPECT(OnAmbientPropertyChange_UNKNOWN);
 DEFINE_EXPECT(Advise);
 DEFINE_EXPECT(Unadvise);
 
-static const IOleObjectVtbl OleObjectVtbl;
-static IOleObject OleObject = { &OleObjectVtbl };
 static IOleClientSite *client_site;
+static HWND container_hwnd, plugin_hwnd;
+static LONG activex_refcnt;
+static HRESULT ax_qi(REFIID, void**);
 
-static HRESULT WINAPI OleObject_QueryInterface(IOleObject *iface, REFIID riid, void **ppv)
+static LRESULT WINAPI plugin_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    if(IsEqualGUID(&IID_IUnknown, riid) || IsEqualGUID(&IID_IOleObject, riid))
-        *ppv = &OleObject;
-    else
-        return E_NOINTERFACE;
+    switch(msg) {
+    case WM_PAINT: {
+        PAINTSTRUCT ps;
+        HBRUSH brush;
+        RECT rect;
+        HDC dc;
 
-    IUnknown_AddRef((IUnknown*)*ppv);
+        GetClientRect(hwnd, &rect);
+
+        dc = BeginPaint(hwnd, &ps);
+        brush = CreateSolidBrush(RGB(255,0,0));
+        SelectObject(dc, brush);
+        Rectangle(dc, rect.left, rect.top, rect.right, rect.bottom);
+        DeleteObject(brush);
+        EndPaint(hwnd, &ps);
+        break;
+    }
+    }
+
+    return DefWindowProcW(hwnd, msg, wParam, lParam);
+}
+
+static void create_plugin_window(HWND parent, const RECT *rect)
+{
+    static const WCHAR plugin_testW[] =
+        {'p','l','u','g','i','n',' ','t','e','s','t',0};
+    static WNDCLASSEXW wndclass = {
+        sizeof(WNDCLASSEXW),
+        0,
+        plugin_proc,
+        0, 0, NULL, NULL, NULL, NULL, NULL,
+        plugin_testW,
+        NULL
+    };
+
+    RegisterClassExW(&wndclass);
+    plugin_hwnd = CreateWindowW(plugin_testW, plugin_testW,
+            WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS|WS_CLIPCHILDREN, rect->left, rect->top,
+            rect->right-rect->left, rect->bottom-rect->top, parent, NULL, NULL, NULL);
+}
+
+static HRESULT WINAPI OleControl_QueryInterface(IOleControl *iface, REFIID riid, void **ppv)
+{
+    return ax_qi(riid, ppv);
+}
+
+static ULONG WINAPI OleControl_AddRef(IOleControl *iface)
+{
+    return ++activex_refcnt;
+}
+
+static ULONG WINAPI OleControl_Release(IOleControl *iface)
+{
+    return --activex_refcnt;
+}
+
+static HRESULT WINAPI OleControl_GetControlInfo(IOleControl *iface, CONTROLINFO *pCI)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleControl_OnMnemonic(IOleControl *iface, MSG *mMsg)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleControl_OnAmbientPropertyChange(IOleControl *iface, DISPID dispID)
+{
+    switch(dispID) {
+    case DISPID_UNKNOWN:
+        CHECK_EXPECT2(OnAmbientPropertyChange_UNKNOWN);
+        break;
+    default:
+        ok(0, "unexpected call %d\n", dispID);
+    }
+
     return S_OK;
 }
 
-static LONG oleobj_cnt;
+static HRESULT WINAPI OleControl_FreezeEvents(IOleControl *iface, BOOL bFreeze)
+{
+    if(bFreeze)
+        CHECK_EXPECT2(FreezeEvents_TRUE);
+    else
+        CHECK_EXPECT2(FreezeEvents_FALSE);
+    return S_OK;
+}
+
+static const IOleControlVtbl OleControlVtbl = {
+    OleControl_QueryInterface,
+    OleControl_AddRef,
+    OleControl_Release,
+    OleControl_GetControlInfo,
+    OleControl_OnMnemonic,
+    OleControl_OnAmbientPropertyChange,
+    OleControl_FreezeEvents
+};
+
+static IOleControl OleControl = { &OleControlVtbl };
+
+static HRESULT WINAPI ViewObjectEx_QueryInterface(IViewObjectEx *iface, REFIID riid, void **ppv)
+{
+    return ax_qi(riid, ppv);
+}
+
+static ULONG WINAPI ViewObjectEx_AddRef(IViewObjectEx *iface)
+{
+    return ++activex_refcnt;
+}
+
+static ULONG WINAPI ViewObjectEx_Release(IViewObjectEx *iface)
+{
+    return --activex_refcnt;
+}
+
+static HRESULT WINAPI ViewObjectEx_Draw(IViewObjectEx *iface, DWORD dwDrawAspect, LONG lindex, void *pvAspect, DVTARGETDEVICE *ptd,
+        HDC hdcTargetDev, HDC hdcDraw, LPCRECTL lprcBounds, LPCRECTL lprcWBoungs, BOOL (WINAPI*pfnContinue)(ULONG_PTR), ULONG_PTR dwContinue)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ViewObjectEx_GetColorSet(IViewObjectEx *iface, DWORD dwDrawAspect, LONG lindex, void *pvAspect, DVTARGETDEVICE *ptd,
+        HDC hicTargetDev, LOGPALETTE **ppColorSet)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ViewObjectEx_Freeze(IViewObjectEx *iface, DWORD dwDrawAspect, LONG lindex, void *pvAspect, DWORD *pdwFreeze)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ViewObjectEx_Unfreeze(IViewObjectEx *iface, DWORD dwFreeze)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ViewObjectEx_SetAdvise(IViewObjectEx *iface, DWORD aspects, DWORD advf, IAdviseSink *pAdvSink)
+{
+    CHECK_EXPECT(SetAdvise);
+
+    ok(aspects == DVASPECT_CONTENT, "aspects = %x\n", aspects);
+    ok(!advf, "advf = %x\n", advf);
+    ok(pAdvSink != NULL, "pAdvSink = NULL\n");
+
+    return S_OK;
+}
+
+static HRESULT WINAPI ViewObjectEx_GetAdvise(IViewObjectEx *iface, DWORD *pAspects, DWORD *pAdvf, IAdviseSink **ppAdvSink)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ViewObjectEx_GetExtent(IViewObjectEx *iface, DWORD dwDrawAspect, LONG lindex, DVTARGETDEVICE *ptd, LPSIZEL lpsizel)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ViewObjectEx_GetRect(IViewObjectEx *iface, DWORD dwAspect, LPRECTL pRect)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ViewObjectEx_GetViewStatus(IViewObjectEx *iface, DWORD *pdwStatus)
+{
+    CHECK_EXPECT(GetViewStatus);
+
+    *pdwStatus = VIEWSTATUS_OPAQUE|VIEWSTATUS_SOLIDBKGND;
+    return S_OK;
+}
+
+static HRESULT WINAPI ViewObjectEx_QueryHitPoint(IViewObjectEx *iface, DWORD dwAspect, LPCRECT pRectBounds, POINT ptlLoc,
+        LONG lCloseHint, DWORD *pHitResult)
+{
+    trace("QueryHitPoint call ignored\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ViewObjectEx_QueryHitRect(IViewObjectEx *iface, DWORD dwAspect, LPCRECT pRectBounds, LPCRECT pRectLoc,
+        LONG lCloseHint, DWORD *pHitResult)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ViewObjectEx_GetNaturalExtent(IViewObjectEx *iface, DWORD dwAspect, LONG lindex, DVTARGETDEVICE *ptd,
+        HDC hicTargetDev, DVEXTENTINFO *pExtentIngo, LPSIZEL pSizel)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static const IViewObjectExVtbl ViewObjectExVtbl = {
+    ViewObjectEx_QueryInterface,
+    ViewObjectEx_AddRef,
+    ViewObjectEx_Release,
+    ViewObjectEx_Draw,
+    ViewObjectEx_GetColorSet,
+    ViewObjectEx_Freeze,
+    ViewObjectEx_Unfreeze,
+    ViewObjectEx_SetAdvise,
+    ViewObjectEx_GetAdvise,
+    ViewObjectEx_GetExtent,
+    ViewObjectEx_GetRect,
+    ViewObjectEx_GetViewStatus,
+    ViewObjectEx_QueryHitPoint,
+    ViewObjectEx_QueryHitRect,
+    ViewObjectEx_GetNaturalExtent
+};
+
+static IViewObjectEx ViewObjectEx = { &ViewObjectExVtbl };
+
+
+
+static HRESULT WINAPI OleObject_QueryInterface(IOleObject *iface, REFIID riid, void **ppv)
+{
+    return ax_qi(riid, ppv);
+}
+
 static ULONG WINAPI OleObject_AddRef(IOleObject *iface)
 {
-    return ++oleobj_cnt;
+    return ++activex_refcnt;
 }
 
 static ULONG WINAPI OleObject_Release(IOleObject *iface)
 {
-    return --oleobj_cnt;
+    return --activex_refcnt;
 }
 
 static HRESULT WINAPI OleObject_SetClientSite(IOleObject *iface, IOleClientSite *pClientSite)
@@ -158,8 +386,14 @@ static HRESULT WINAPI OleObject_GetClipboardData(IOleObject *iface, DWORD dwRese
 static HRESULT WINAPI OleObject_DoVerb(IOleObject *iface, LONG iVerb, LPMSG lpmsg, IOleClientSite *pActiveSite,
         LONG lindex, HWND hwndParent, LPCRECT lprcPosRect)
 {
-    HRESULT hres;
+    OLEINPLACEFRAMEINFO frame_info = {0xdeadbeef};
+    IOleInPlaceUIWindow *ip_uiwindow;
+    IOleInPlaceFrame *ip_frame;
     IOleInPlaceSiteEx *ip_site;
+    RECT pos_rect, clip_rect;
+    BOOL no_redraw;
+    HWND hwnd;
+    HRESULT hres;
 
     CHECK_EXPECT(DoVerb);
 
@@ -175,6 +409,53 @@ static HRESULT WINAPI OleObject_DoVerb(IOleObject *iface, LONG iVerb, LPMSG lpms
     hres = IOleInPlaceSiteEx_CanInPlaceActivate(ip_site);
     ok(hres == S_OK, "CanInPlaceActivate failed: %08x\n", hres);
 
+    SET_EXPECT(InPlaceObject_GetWindow);
+    no_redraw = 0xdeadbeef;
+    hres = IOleInPlaceSiteEx_OnInPlaceActivateEx(ip_site, &no_redraw, 0);
+    ok(hres == S_OK, "InPlaceActivateEx failed: %08x\n", hres);
+    ok(!no_redraw, "no_redraw = %x\n", no_redraw);
+    CHECK_CALLED(InPlaceObject_GetWindow);
+
+    no_redraw = 0xdeadbeef;
+    hres = IOleInPlaceSiteEx_OnInPlaceActivateEx(ip_site, &no_redraw, 0);
+    ok(hres == S_OK, "InPlaceActivateEx failed: %08x\n", hres);
+    ok(no_redraw == 0xdeadbeef, "no_redraw = %x\n", no_redraw);
+
+    hwnd = NULL;
+    hres = IOleInPlaceSiteEx_GetWindow(ip_site, &hwnd);
+    ok(hres == S_OK, "GetWindow failed: %08x\n", hres);
+    ok(hwnd != NULL, "hwnd == NULL\n");
+    ok(hwnd == hwndParent, "hwnd != hwndParent\n");
+
+    create_plugin_window(hwnd, lprcPosRect);
+
+    ip_frame = NULL;
+    ip_uiwindow = NULL;
+    frame_info.cb = sizeof(OLEINPLACEFRAMEINFO);
+    hres = IOleInPlaceSiteEx_GetWindowContext(ip_site, &ip_frame, &ip_uiwindow, &pos_rect, &clip_rect, &frame_info);
+    ok(hres == S_OK, "GetWindowContext failed: %08x\n", hres);
+    ok(ip_frame != NULL, "ip_frame == NULL\n");
+    ok(ip_uiwindow != NULL, "ip_uiwindow == NULL\n");
+    ok((IOleInPlaceUIWindow*)ip_frame != ip_uiwindow, "ip_frame == ip_uiwindow\n");
+    ok(!memcmp(&pos_rect, lprcPosRect, sizeof(RECT)), "pos_rect != lpecPosRect\n");
+    ok(!memcmp(&clip_rect, lprcPosRect, sizeof(RECT)), "clip_rect != lpecPosRect\n");
+    ok(frame_info.cb == sizeof(frame_info), "frame_info.cb = %d\n", frame_info.cb);
+    ok(!frame_info.fMDIApp, "frame_info.fMDIApp = %x\n", frame_info.fMDIApp);
+    ok(frame_info.hwndFrame != NULL, "frame_info.hwnd == NULL\n");
+    ok(frame_info.hwndFrame == container_hwnd, "frame_info.hwnd != container_hwnd\n");
+    ok(!frame_info.haccel, "frame_info.haccel != 0\n");
+    ok(!frame_info.cAccelEntries, "frame_info.cAccelEntried != 0\n");
+
+    IOleInPlaceFrame_Release(ip_frame);
+    IOleInPlaceUIWindow_Release(ip_uiwindow);
+
+    IOleInPlaceSiteEx_Release(ip_site);
+
+    hres = IOleClientSite_ShowObject(client_site);
+    ok(hres == S_OK, "ShowObject failed: %08x\n", hres);
+
+    SET_EXPECT(InPlaceObject_GetWindow);
+    SET_EXPECT(SetObjectRects);
     return S_OK;
 }
 
@@ -280,6 +561,133 @@ static const IOleObjectVtbl OleObjectVtbl = {
     OleObject_GetMiscStatus,
     OleObject_SetColorScheme
 };
+
+static IOleObject OleObject = { &OleObjectVtbl };
+
+static HRESULT WINAPI OleInPlaceObject_QueryInterface(IOleInPlaceObjectWindowless *iface,
+        REFIID riid, void **ppv)
+{
+    return ax_qi(riid, ppv);
+}
+
+static ULONG WINAPI OleInPlaceObject_AddRef(IOleInPlaceObjectWindowless *iface)
+{
+    return ++activex_refcnt;
+}
+
+static ULONG WINAPI OleInPlaceObject_Release(IOleInPlaceObjectWindowless *iface)
+{
+    return --activex_refcnt;
+}
+
+static HRESULT WINAPI OleInPlaceObject_GetWindow(IOleInPlaceObjectWindowless *iface,
+        HWND *phwnd)
+{
+    CHECK_EXPECT2(InPlaceObject_GetWindow);
+
+    ok(phwnd != NULL, "phwnd == NULL\n");
+
+    *phwnd = plugin_hwnd;
+    return *phwnd ? S_OK : E_UNEXPECTED;
+}
+
+static HRESULT WINAPI OleInPlaceObject_ContextSensitiveHelp(IOleInPlaceObjectWindowless *iface,
+        BOOL fEnterMode)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleInPlaceObject_InPlaceDeactivate(IOleInPlaceObjectWindowless *iface)
+{
+    IOleInPlaceSite *ip_site;
+    HRESULT hres;
+
+    CHECK_EXPECT(InPlaceDeactivate);
+
+    hres = IOleClientSite_QueryInterface(client_site, &IID_IOleInPlaceSite, (void**)&ip_site);
+    ok(hres == S_OK, "Could not get IOleInPlaceSite iface: %08x\n", hres);
+
+    hres = IOleInPlaceSite_OnInPlaceDeactivate(ip_site);
+    ok(hres == S_OK, "OnInPlaceDeactivate failed: %08x\n", hres);
+
+    IOleInPlaceSite_Release(ip_site);
+    return S_OK;
+}
+
+static HRESULT WINAPI OleInPlaceObject_UIDeactivate(IOleInPlaceObjectWindowless *iface)
+{
+    CHECK_EXPECT2(UIDeactivate);
+    return S_OK;
+}
+
+static HRESULT WINAPI OleInPlaceObject_SetObjectRects(IOleInPlaceObjectWindowless *iface,
+        LPCRECT lprcPosRect, LPCRECT lprcClipRect)
+{
+    CHECK_EXPECT2(SetObjectRects);
+    return S_OK;
+}
+
+static HRESULT WINAPI OleInPlaceObjectWindowless_ReactivateAndUndo(IOleInPlaceObjectWindowless *iface)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleInPlaceObjectWindowless_OnWindowMessage(IOleInPlaceObjectWindowless *iface,
+        UINT msg, WPARAM wParam, LPARAM lParam, LRESULT *lpResult)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleInPlaceObjectWindowless_GetDropTarget(IOleInPlaceObjectWindowless *iface,
+        IDropTarget **ppDropTarget)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static const IOleInPlaceObjectWindowlessVtbl OleInPlaceObjectWindowlessVtbl = {
+    OleInPlaceObject_QueryInterface,
+    OleInPlaceObject_AddRef,
+    OleInPlaceObject_Release,
+    OleInPlaceObject_GetWindow,
+    OleInPlaceObject_ContextSensitiveHelp,
+    OleInPlaceObject_InPlaceDeactivate,
+    OleInPlaceObject_UIDeactivate,
+    OleInPlaceObject_SetObjectRects,
+    OleInPlaceObjectWindowless_ReactivateAndUndo,
+    OleInPlaceObjectWindowless_OnWindowMessage,
+    OleInPlaceObjectWindowless_GetDropTarget
+};
+
+static IOleInPlaceObjectWindowless OleInPlaceObjectWindowless = { &OleInPlaceObjectWindowlessVtbl };
+
+static HRESULT ax_qi(REFIID riid, void **ppv)
+{
+    if(IsEqualGUID(riid, &IID_IUnknown) || IsEqualGUID(riid, &IID_IOleControl)) {
+        *ppv = &OleControl;
+    }else if(IsEqualGUID(riid, &IID_IViewObject) || IsEqualGUID(riid, &IID_IViewObject2)
+             || IsEqualGUID(riid, &IID_IViewObjectEx)) {
+        *ppv = &ViewObjectEx;
+    }else if(IsEqualGUID(riid, &IID_IOleObject)) {
+        *ppv = &OleObject;
+    }else if(IsEqualGUID(riid, &IID_IOleWindow) || IsEqualGUID(riid, &IID_IOleInPlaceObject)
+              || IsEqualGUID(&IID_IOleInPlaceObjectWindowless, riid)) {
+        *ppv = &OleInPlaceObjectWindowless;
+    }else {
+        trace("QI %s\n", wine_dbgstr_guid(riid));
+        *ppv = NULL;
+    }
+
+    if(!*ppv)
+        return E_NOINTERFACE;
+
+    IUnknown_AddRef((IUnknown*)*ppv);
+    return S_OK;
+}
+
 static const GUID CLSID_Test =
     {0x178fc163,0x0000,0x0000,{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x46}};
 #define CLSID_TEST_STR "178fc163-0000-0000-0000-000000000046"
@@ -1087,19 +1495,6 @@ static void test_AtlAxAttachControl2(void)
     IUnknown *control = (IUnknown *)&OleObject;
     IUnknown *container;
     HRESULT hr;
-
-    SET_EXPECT(DoVerb);
-    SET_EXPECT(SetHostNames);
-    SET_EXPECT(SetExtent);
-    SET_EXPECT(SetClientSite);
-    container = NULL;
-    hr = AtlAxAttachControl(control, NULL, &container);
-    ok(hr == S_FALSE, "Expected AtlAxAttachControl to return S_FALSE, got 0x%08x\n", hr);
-    ok(container != NULL, "Expected not NULL!\n");
-    todo_wine CHECK_EXPECT(DoVerb);
-    todo_wine CHECK_EXPECT(SetHostNames);
-    todo_wine CHECK_EXPECT(SetExtent);
-    todo_wine CHECK_EXPECT(SetClientSite);
 
     SET_EXPECT(GetMiscStatus);
     SET_EXPECT(SetClientSite);
