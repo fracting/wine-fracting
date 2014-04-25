@@ -79,11 +79,13 @@ DEFINE_EXPECT(OnAmbientPropertyChange_UNKNOWN);
 DEFINE_EXPECT(Advise);
 DEFINE_EXPECT(Unadvise);
 DEFINE_EXPECT(Draw);
+DEFINE_EXPECT(LockRunning);
 
 static IOleClientSite *client_site;
 static HWND container_hwnd, plugin_hwnd;
 static LONG activex_refcnt;
 static HRESULT ax_qi(REFIID, void**);
+static BOOL g_isRunning;
 
 static LRESULT WINAPI plugin_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -660,6 +662,65 @@ static const IOleInPlaceObjectWindowlessVtbl OleInPlaceObjectWindowlessVtbl = {
 
 static IOleInPlaceObjectWindowless OleInPlaceObjectWindowless = { &OleInPlaceObjectWindowlessVtbl };
 
+static HRESULT WINAPI OleObjectRunnable_QueryInterface(IRunnableObject *iface, REFIID riid, void **ppv)
+{
+    return ax_qi(riid, ppv);
+}
+
+static ULONG WINAPI OleObjectRunnable_AddRef(IRunnableObject *iface)
+{
+    return ++activex_refcnt;
+}
+
+static ULONG WINAPI OleObjectRunnable_Release(IRunnableObject *iface)
+{
+    return --activex_refcnt;
+}
+
+static HRESULT WINAPI OleObjectRunnable_GetRunningClass(IRunnableObject *iface, LPCLSID lpClsid)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI OleObjectRunnable_Run(IRunnableObject *iface, LPBINDCTX pbc)
+{
+    ok(0, "unexpected call\n");
+    return S_OK;
+}
+
+static BOOL WINAPI OleObjectRunnable_IsRunning(IRunnableObject *iface)
+{
+    ok(0, "unexpected call\n");
+    return g_isRunning;
+}
+
+static HRESULT WINAPI OleObjectRunnable_LockRunning(IRunnableObject *iface, BOOL fLock, BOOL fLastUnlockCloses)
+{
+    CHECK_EXPECT(LockRunning);
+    return S_OK;
+}
+
+static HRESULT WINAPI OleObjectRunnable_SetContainedObject(IRunnableObject *iface, BOOL fContained)
+{
+    ok(0, "unexpected call\n");
+    return S_OK;
+}
+
+static const IRunnableObjectVtbl OleObjectRunnableVtbl =
+{
+    OleObjectRunnable_QueryInterface,
+    OleObjectRunnable_AddRef,
+    OleObjectRunnable_Release,
+    OleObjectRunnable_GetRunningClass,
+    OleObjectRunnable_Run,
+    OleObjectRunnable_IsRunning,
+    OleObjectRunnable_LockRunning,
+    OleObjectRunnable_SetContainedObject
+};
+
+static IRunnableObject OleObjectRunnable = { &OleObjectRunnableVtbl };
+
 static HRESULT ax_qi(REFIID riid, void **ppv)
 {
     if(IsEqualGUID(riid, &IID_IUnknown) || IsEqualGUID(riid, &IID_IOleControl)) {
@@ -672,6 +733,8 @@ static HRESULT ax_qi(REFIID riid, void **ppv)
     }else if(IsEqualGUID(riid, &IID_IOleWindow) || IsEqualGUID(riid, &IID_IOleInPlaceObject)
               || IsEqualGUID(&IID_IOleInPlaceObjectWindowless, riid)) {
         *ppv = &OleInPlaceObjectWindowless;
+    }else if(IsEqualGUID(riid, &IID_IRunnableObject)) {
+            *ppv = &OleObjectRunnable;
     }else {
         trace("QI %s\n", wine_dbgstr_guid(riid));
         *ppv = NULL;
@@ -1500,6 +1563,7 @@ static void test_AtlAxAttachControl2(void)
     SET_EXPECT(SetExtent);
     SET_EXPECT(GetExtent);
     SET_EXPECT(DoVerb);
+    SET_EXPECT(LockRunning);
     SET_EXPECT(Draw);
 
     container = NULL;
@@ -1515,6 +1579,7 @@ static void test_AtlAxAttachControl2(void)
     CHECK_CALLED(SetExtent);
     todo_wine CHECK_CALLED(GetExtent);
     CHECK_CALLED(DoVerb);
+    todo_wine CHECK_CALLED(LockRunning);
     todo_wine CHECK_CALLED(Draw);
 
     SET_EXPECT(SetAdvise_NULL);
