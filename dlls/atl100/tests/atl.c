@@ -80,12 +80,15 @@ DEFINE_EXPECT(Advise);
 DEFINE_EXPECT(Unadvise);
 DEFINE_EXPECT(Draw);
 DEFINE_EXPECT(LockRunning);
+DEFINE_EXPECT(SetSite);
+DEFINE_EXPECT(SetSite_NULL);
 
 static IOleClientSite *client_site;
 static HWND container_hwnd, plugin_hwnd;
 static LONG activex_refcnt;
 static HRESULT ax_qi(REFIID, void**);
 static BOOL g_isRunning;
+static HRESULT SetSite_hres;
 
 static LRESULT WINAPI plugin_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -721,6 +724,56 @@ static const IRunnableObjectVtbl OleObjectRunnableVtbl =
 
 static IRunnableObject OleObjectRunnable = { &OleObjectRunnableVtbl };
 
+static HRESULT WINAPI ObjectWithSite_QueryInterface(IObjectWithSite *iface, REFIID riid, void **ppv)
+{
+    return ax_qi(riid, ppv);
+}
+
+static ULONG WINAPI ObjectWithSite_AddRef(IObjectWithSite *iface)
+{
+    return --activex_refcnt;
+}
+
+static ULONG WINAPI ObjectWithSite_Release(IObjectWithSite *iface)
+{
+    return --activex_refcnt;
+}
+
+static HRESULT WINAPI ObjectWithSite_SetSite(IObjectWithSite *iface, IUnknown *pUnkSite)
+{
+    IServiceProvider *sp;
+    HRESULT hres;
+
+
+    if (pUnkSite)
+    {
+        CHECK_EXPECT(SetSite);
+        hres = IUnknown_QueryInterface(pUnkSite, &IID_IServiceProvider, (void**)&sp);
+        ok(hres == S_OK, "Could not get IServiceProvider iface: %08x\n", hres);
+        IServiceProvider_Release(sp);
+    }
+    else
+        CHECK_EXPECT(SetSite_NULL);
+
+    return SetSite_hres;
+}
+
+static HRESULT WINAPI ObjectWithSite_GetSite(IObjectWithSite *iface, REFIID riid, void **ppvSite)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static const IObjectWithSiteVtbl ObjectWithSiteVtbl = {
+    ObjectWithSite_QueryInterface,
+    ObjectWithSite_AddRef,
+    ObjectWithSite_Release,
+    ObjectWithSite_SetSite,
+    ObjectWithSite_GetSite
+};
+
+static IObjectWithSite ObjectWithSite = { &ObjectWithSiteVtbl };
+
 static HRESULT ax_qi(REFIID riid, void **ppv)
 {
     if(IsEqualGUID(riid, &IID_IUnknown) || IsEqualGUID(riid, &IID_IOleControl)) {
@@ -735,6 +788,8 @@ static HRESULT ax_qi(REFIID riid, void **ppv)
         *ppv = &OleInPlaceObjectWindowless;
     }else if(IsEqualGUID(riid, &IID_IRunnableObject)) {
             *ppv = &OleObjectRunnable;
+    }else if(IsEqualGUID(riid, &IID_IObjectWithSite)) {
+            *ppv = &ObjectWithSite;
     }else {
         trace("QI %s\n", wine_dbgstr_guid(riid));
         *ppv = NULL;
@@ -1565,6 +1620,7 @@ static void test_AtlAxAttachControl2(void)
     SET_EXPECT(DoVerb);
     SET_EXPECT(LockRunning);
     SET_EXPECT(Draw);
+    SET_EXPECT(SetSite);
 
     container = NULL;
     hr = AtlAxAttachControl(control, hwnd, &container);
@@ -1581,11 +1637,13 @@ static void test_AtlAxAttachControl2(void)
     CHECK_CALLED(DoVerb);
     todo_wine CHECK_CALLED(LockRunning);
     todo_wine CHECK_CALLED(Draw);
+    todo_wine CHECK_CALLED(SetSite);
 
     SET_EXPECT(SetAdvise_NULL);
     SET_EXPECT(Unadvise);
     SET_EXPECT(Close);
     SET_EXPECT(SetClientSite_NULL);
+    SET_EXPECT(SetSite_NULL);
 
     DestroyWindow(hwnd);
 
@@ -1593,6 +1651,7 @@ static void test_AtlAxAttachControl2(void)
     todo_wine CHECK_CALLED(Unadvise);
     CHECK_CALLED(Close);
     CHECK_CALLED(SetClientSite_NULL);
+    todo_wine CHECK_CALLED(SetSite_NULL);
 }
 
 START_TEST(atl)
