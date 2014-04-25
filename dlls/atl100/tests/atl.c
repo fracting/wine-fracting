@@ -71,13 +71,14 @@ DEFINE_EXPECT(Close);
 DEFINE_EXPECT(InPlaceObject_GetWindow);
 DEFINE_EXPECT(SetObjectRects);
 DEFINE_EXPECT(InPlaceDeactivate);
-DEFINE_EXPECT(UIDeactivate);
 DEFINE_EXPECT(GetMiscStatus);
 DEFINE_EXPECT(SetAdvise);
+DEFINE_EXPECT(SetAdvise_NULL);
 DEFINE_EXPECT(GetViewStatus);
 DEFINE_EXPECT(OnAmbientPropertyChange_UNKNOWN);
 DEFINE_EXPECT(Advise);
 DEFINE_EXPECT(Unadvise);
+DEFINE_EXPECT(Draw);
 
 static IOleClientSite *client_site;
 static HWND container_hwnd, plugin_hwnd;
@@ -206,7 +207,7 @@ static ULONG WINAPI ViewObjectEx_Release(IViewObjectEx *iface)
 static HRESULT WINAPI ViewObjectEx_Draw(IViewObjectEx *iface, DWORD dwDrawAspect, LONG lindex, void *pvAspect, DVTARGETDEVICE *ptd,
         HDC hdcTargetDev, HDC hdcDraw, LPCRECTL lprcBounds, LPCRECTL lprcWBoungs, BOOL (WINAPI*pfnContinue)(ULONG_PTR), ULONG_PTR dwContinue)
 {
-    ok(0, "unexpected call\n");
+    CHECK_EXPECT(Draw);
     return E_NOTIMPL;
 }
 
@@ -231,11 +232,13 @@ static HRESULT WINAPI ViewObjectEx_Unfreeze(IViewObjectEx *iface, DWORD dwFreeze
 
 static HRESULT WINAPI ViewObjectEx_SetAdvise(IViewObjectEx *iface, DWORD aspects, DWORD advf, IAdviseSink *pAdvSink)
 {
-    CHECK_EXPECT(SetAdvise);
+    if (pAdvSink)
+        CHECK_EXPECT(SetAdvise);
+    else
+        CHECK_EXPECT(SetAdvise_NULL);
 
     ok(aspects == DVASPECT_CONTENT, "aspects = %x\n", aspects);
     ok(!advf, "advf = %x\n", advf);
-    ok(pAdvSink != NULL, "pAdvSink = NULL\n");
 
     return S_OK;
 }
@@ -409,15 +412,10 @@ static HRESULT WINAPI OleObject_DoVerb(IOleObject *iface, LONG iVerb, LPMSG lpms
     hres = IOleInPlaceSiteEx_CanInPlaceActivate(ip_site);
     ok(hres == S_OK, "CanInPlaceActivate failed: %08x\n", hres);
 
-    SET_EXPECT(InPlaceObject_GetWindow);
     no_redraw = 0xdeadbeef;
+    SET_EXPECT(SetObjectRects);
     hres = IOleInPlaceSiteEx_OnInPlaceActivateEx(ip_site, &no_redraw, 0);
-    ok(hres == S_OK, "InPlaceActivateEx failed: %08x\n", hres);
-    ok(!no_redraw, "no_redraw = %x\n", no_redraw);
-    CHECK_CALLED(InPlaceObject_GetWindow);
-
-    no_redraw = 0xdeadbeef;
-    hres = IOleInPlaceSiteEx_OnInPlaceActivateEx(ip_site, &no_redraw, 0);
+    todo_wine CHECK_CALLED(SetObjectRects);
     ok(hres == S_OK, "InPlaceActivateEx failed: %08x\n", hres);
     ok(no_redraw == 0xdeadbeef, "no_redraw = %x\n", no_redraw);
 
@@ -435,27 +433,25 @@ static HRESULT WINAPI OleObject_DoVerb(IOleObject *iface, LONG iVerb, LPMSG lpms
     hres = IOleInPlaceSiteEx_GetWindowContext(ip_site, &ip_frame, &ip_uiwindow, &pos_rect, &clip_rect, &frame_info);
     ok(hres == S_OK, "GetWindowContext failed: %08x\n", hres);
     ok(ip_frame != NULL, "ip_frame == NULL\n");
-    ok(ip_uiwindow != NULL, "ip_uiwindow == NULL\n");
+    todo_wine ok(ip_uiwindow != NULL, "ip_uiwindow == NULL\n");
     ok((IOleInPlaceUIWindow*)ip_frame != ip_uiwindow, "ip_frame == ip_uiwindow\n");
     ok(!memcmp(&pos_rect, lprcPosRect, sizeof(RECT)), "pos_rect != lpecPosRect\n");
     ok(!memcmp(&clip_rect, lprcPosRect, sizeof(RECT)), "clip_rect != lpecPosRect\n");
     ok(frame_info.cb == sizeof(frame_info), "frame_info.cb = %d\n", frame_info.cb);
     ok(!frame_info.fMDIApp, "frame_info.fMDIApp = %x\n", frame_info.fMDIApp);
-    ok(frame_info.hwndFrame != NULL, "frame_info.hwnd == NULL\n");
-    ok(frame_info.hwndFrame == container_hwnd, "frame_info.hwnd != container_hwnd\n");
-    ok(!frame_info.haccel, "frame_info.haccel != 0\n");
-    ok(!frame_info.cAccelEntries, "frame_info.cAccelEntried != 0\n");
+    todo_wine ok(!frame_info.hwndFrame,"frame_info.hwndFrame = %p\n", frame_info.hwndFrame);
+    todo_wine ok(frame_info.hwndFrame == container_hwnd, "frame_info.hwnd != container_hwnd\n");
+    todo_wine ok(frame_info.haccel != NULL, "expected frame_info.haccel not NULL!\n");
+    todo_wine ok(frame_info.cAccelEntries == 1, "frame_info.cAccelEntries %d\n", frame_info.cAccelEntries);
 
     IOleInPlaceFrame_Release(ip_frame);
-    IOleInPlaceUIWindow_Release(ip_uiwindow);
+    if (ip_uiwindow) IOleInPlaceUIWindow_Release(ip_uiwindow);
 
     IOleInPlaceSiteEx_Release(ip_site);
 
     hres = IOleClientSite_ShowObject(client_site);
     ok(hres == S_OK, "ShowObject failed: %08x\n", hres);
 
-    SET_EXPECT(InPlaceObject_GetWindow);
-    SET_EXPECT(SetObjectRects);
     return S_OK;
 }
 
@@ -617,14 +613,14 @@ static HRESULT WINAPI OleInPlaceObject_InPlaceDeactivate(IOleInPlaceObjectWindow
 
 static HRESULT WINAPI OleInPlaceObject_UIDeactivate(IOleInPlaceObjectWindowless *iface)
 {
-    CHECK_EXPECT2(UIDeactivate);
+    ok(0, "unexpected call\n");
     return S_OK;
 }
 
 static HRESULT WINAPI OleInPlaceObject_SetObjectRects(IOleInPlaceObjectWindowless *iface,
         LPCRECT lprcPosRect, LPCRECT lprcClipRect)
 {
-    CHECK_EXPECT2(SetObjectRects);
+    CHECK_EXPECT(SetObjectRects);
     return S_OK;
 }
 
@@ -1499,26 +1495,36 @@ static void test_AtlAxAttachControl2(void)
     SET_EXPECT(GetMiscStatus);
     SET_EXPECT(SetClientSite);
     SET_EXPECT(Advise);
+    SET_EXPECT(SetAdvise);
     SET_EXPECT(SetHostNames);
     SET_EXPECT(SetExtent);
     SET_EXPECT(GetExtent);
     SET_EXPECT(DoVerb);
+    SET_EXPECT(Draw);
+
     container = NULL;
     hr = AtlAxAttachControl(control, hwnd, &container);
     ok(hr == S_OK, "Expected AtlAxAttachControl to return S_OK, got 0x%08x\n", hr);
     ok(container != NULL, "Expected not NULL!\n");
+
     todo_wine CHECK_CALLED(GetMiscStatus);
     CHECK_CALLED(SetClientSite);
     todo_wine CHECK_CALLED(Advise);
+    todo_wine CHECK_CALLED(SetAdvise);
     CHECK_CALLED(SetHostNames);
     CHECK_CALLED(SetExtent);
     todo_wine CHECK_CALLED(GetExtent);
     CHECK_CALLED(DoVerb);
+    todo_wine CHECK_CALLED(Draw);
 
+    SET_EXPECT(SetAdvise_NULL);
     SET_EXPECT(Unadvise);
     SET_EXPECT(Close);
     SET_EXPECT(SetClientSite_NULL);
+
     DestroyWindow(hwnd);
+
+    todo_wine CHECK_CALLED(SetAdvise_NULL);
     todo_wine CHECK_CALLED(Unadvise);
     CHECK_CALLED(Close);
     CHECK_CALLED(SetClientSite_NULL);
