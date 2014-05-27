@@ -8,4 +8,7 @@ language: objective-c
 compiler:
   - clang
 # Change this to your needs
-script: ./configure --without-x && make -j4 2>&1 | grep -A100 -B100 'error:' && make test -k 2>&1 | grep -e 'Test failed:' -e 'the last test'
+script:
+  - ./configure --without-x
+  - travis_wait make -j4 2>&1 | grep -A100 -B100 'error:'
+  - travis_wait make test -k 2>&1 | grep -A100 -B100 -e 'Test failed:' -e 'the last test'
