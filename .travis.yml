@@ -1,12 +1,11 @@
 before_script:
-  - sudo apt-add-repository -y ppa:ubuntu-wine/ppa
-  - sudo apt-get update
-  - sudo apt-get build-dep wine
-
-language: c
-
-script:
-  - ./configure --enable-win64
-  - make depend -j4
-  - make -j4
-  - make -k -j4 test
+  - brew list
+  - brew info libpng
+  - brew info freetype
+  - brew remove libpng jpeg libxml2 libtiff libtool
+  - brew install --universal freetype jpeg libtiff little-cms2 sane-backends libgphoto2 libgsm
+language: objective-c
+compiler:
+  - clang
+# Change this to your needs
+script: ./configure --without-x && make -j4 2>&1 | grep -A100 -B100 'error:' && make test -k 2>&1 | grep -e 'Test failed:' -e 'the last test'
