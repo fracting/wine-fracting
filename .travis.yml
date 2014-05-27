@@ -1,5 +1,5 @@
 before_script:
-  - travis-wait sleep 3
+  - travis_wait sleep 3
   - brew list
   - brew info libpng
   - brew info freetype
