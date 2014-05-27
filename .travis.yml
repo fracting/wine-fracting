@@ -1,5 +1,5 @@
 before_script:
-  - brew list
+  - travis_wait brew list
   - brew info libpng
   - brew info freetype
   - brew remove libpng jpeg libxml2 libtiff libtool
