@@ -1,5 +1,5 @@
 before_script:
-  - travis_wait brew list
+  - brew list
   - brew info libpng
   - brew info freetype
   - brew remove libpng jpeg libxml2 libtiff libtool
@@ -10,5 +10,5 @@ compiler:
 # Change this to your needs
 script:
   - ./configure --without-x
-  - travis_wait make -j4 2>&1 | grep -A100 -B100 'error:'
-  - travis_wait make test -k 2>&1 | grep -A100 -B100 -e 'Test failed:' -e 'the last test'
+  - make -j4 2>&1 | grep -A100 -B100 -e 'error:' -e 'gcc'
+  - make test -k 2>&1 | grep -A100 -B100 -e 'Test failed:' -e 'the last test' -e 'runtest'
