@@ -10,5 +10,5 @@ compiler:
 # Change this to your needs
 script:
   - ./configure --without-x
-  - make -j4 2>&1 | grep -A100 -B100 -e 'error:' -e 'gcc'
-  - make test -k 2>&1 | grep -A100 -B100 -e 'Test failed:' -e 'the last test' -e 'runtest'
+  - make -j4 2>&1 | grep -A1 -B1 -e 'error:' -e 'gcc'
+  - make test -k 2>&1 | grep -A1 -B1 -e 'Test failed:' -e 'the last test' -e 'runtest'
