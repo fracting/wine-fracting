@@ -1,13 +1,17 @@
+os:
+  - osx
 before_script:
-  - travis_wait sleep 3
+  - travis_wait sleep 5m
   - brew list
   - brew info libpng
   - brew info freetype
   - brew remove libpng jpeg libxml2 libtiff libtool
   - brew install --universal freetype jpeg libtiff little-cms2 sane-backends libgphoto2 libgsm
+  - brew install gettext
+  - brew link gettext --force
 language: objective-c
 compiler:
-  - clang
+  - gcc
 # Change this to your needs
 script:
   - ./configure --without-x
