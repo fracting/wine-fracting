@@ -184,6 +184,7 @@ struct user_thread_info
     DWORD                         GetMessagePosVal;       /* Value for GetMessagePos */
     ULONG_PTR                     GetMessageExtraInfoVal; /* Value for GetMessageExtraInfo */
     UINT                          active_hooks;           /* Bitmap of active hooks */
+    INT                           key_state_epoch;        /* Counter to invalidate the key state */
     UINT                          key_state_time;         /* Time of last key state refresh */
     BYTE                         *key_state;              /* Cache of global key state */
     HWND                          top_window;             /* Desktop window */
@@ -192,6 +193,8 @@ struct user_thread_info
 
     ULONG                         pad[6];                 /* Available for more data */
 };
+
+extern INT global_key_state_epoch DECLSPEC_HIDDEN;
 
 struct hook_extra_info
 {
