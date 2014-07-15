@@ -1,6 +1,8 @@
 os:
   - osx
   - linux
+before_install:
+  - utils/travis-before-install-${TRAVIS_OS_NAME}.sh
 before_script:
   - utils/travis-before-script-${TRAVIS_OS_NAME}.sh
 language: c
