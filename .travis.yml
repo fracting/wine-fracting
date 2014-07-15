@@ -1,19 +1,11 @@
 os:
   - osx
+  - linux
 before_script:
-  - travis_wait sleep 5m
-  - brew list
-  - brew info libpng
-  - brew info freetype
-  - brew remove libpng jpeg libxml2 libtiff libtool
-  - brew install --universal freetype jpeg libtiff little-cms2 sane-backends libgphoto2 libgsm
-  - brew install gettext
-  - brew link gettext --force
-language: objective-c
+  - utils/travis-before-script-${TRAVIS_OS_NAME}.sh
+language: c
 compiler:
   - gcc
-# Change this to your needs
+  - clang
 script:
-  - ./configure --without-x
-  - make -j4 2>&1 | grep -A1 -B1 -e 'error:' -e 'gcc'
-  - make test -k 2>&1 | grep -A1 -B1 -e 'Test failed:' -e 'the last test' -e 'runtest'
+  - utils/build-${TRAVIS_OS_NAME}.sh
