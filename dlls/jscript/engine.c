@@ -527,10 +527,17 @@ static HRESULT identifier_eval(script_ctx_t *ctx, BSTR identifier, exprval_t *re
         }
     }
 
-    hres = jsdisp_get_id(ctx->global, identifier, 0, &id);
-    if(SUCCEEDED(hres)) {
-        exprval_set_idref(ret, to_disp(ctx->global), id);
-        return S_OK;
+    if(ctx->global)
+    {
+        hres = jsdisp_get_id(ctx->global, identifier, 0, &id);
+        if(SUCCEEDED(hres)) {
+            exprval_set_idref(ret, to_disp(ctx->global), id);
+            return S_OK;
+        }
+    }
+    else
+    {
+        FIXME("haha ctx->global %p\n", ctx->global);
     }
 
     for(item = ctx->named_items; item; item = item->next) {

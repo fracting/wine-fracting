@@ -573,8 +573,13 @@ static HRESULT HTMLFormElement_QI(HTMLDOMNode *iface, REFIID riid, void **ppv)
 
     *ppv = NULL;
 
+    FIXME("haha (%p)->(%s %p)\n", This, debugstr_mshtml_guid(riid), ppv);
+
     if(IsEqualGUID(&IID_IUnknown, riid)) {
         TRACE("(%p)->(IID_IUnknown %p)\n", This, ppv);
+        *ppv = &This->IHTMLFormElement_iface;
+    }else if(IsEqualGUID(&DIID_DispHTMLFormElement, riid)) {
+        TRACE("(%p)->(DIID_DispHTMLFormElement %p)\n", This, ppv);
         *ppv = &This->IHTMLFormElement_iface;
     }else if(IsEqualGUID(&IID_IDispatch, riid)) {
         TRACE("(%p)->(IID_IDispatch %p)\n", This, ppv);
@@ -592,7 +597,7 @@ static HRESULT HTMLFormElement_QI(HTMLDOMNode *iface, REFIID riid, void **ppv)
     return HTMLElement_QI(&This->element.node, riid, ppv);
 }
 
-static HRESULT HTMLFormElement_get_dispid(HTMLDOMNode *iface,
+HRESULT HTMLFormElement_get_dispid(HTMLDOMNode *iface,
         BSTR name, DWORD grfdex, DISPID *pid)
 {
     HTMLFormElement *This = impl_from_HTMLDOMNode(iface);

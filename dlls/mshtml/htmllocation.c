@@ -560,6 +560,9 @@ static HRESULT WINAPI HTMLLocation_reload(IHTMLLocation *iface, VARIANT_BOOL fla
 static HRESULT WINAPI HTMLLocation_replace(IHTMLLocation *iface, BSTR bstr)
 {
     HTMLLocation *This = impl_from_IHTMLLocation(iface);
+    BSTR href_str;
+    HRESULT hres;
+    WCHAR about_blankW[] = {'a','b','o','u','t',':','b','l','a','n','k','\0'};
 
     TRACE("(%p)->(%s)\n", This, debugstr_w(bstr));
 
@@ -567,6 +570,12 @@ static HRESULT WINAPI HTMLLocation_replace(IHTMLLocation *iface, BSTR bstr)
         FIXME("No window available\n");
         return E_FAIL;
     }
+
+    hres = IHTMLLocation_get_href(&This->IHTMLLocation_iface, &href_str);
+    FIXME("haha hres is %08x, href is %s\n", hres, wine_dbgstr_w(href_str));
+
+    if (!strcmpW(about_blankW, href_str))
+        navigate_url(This->window->base.outer_window, bstr, This->window->base.outer_window->parent->uri,BINDING_NAVIGATED|BINDING_REPLACE);
 
     return navigate_url(This->window->base.outer_window, bstr, This->window->base.outer_window->uri,
             BINDING_NAVIGATED|BINDING_REPLACE);

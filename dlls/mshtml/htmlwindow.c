@@ -370,8 +370,8 @@ HRESULT get_frame_by_name(HTMLOuterWindow *This, const WCHAR *name, BOOL deep, H
     HRESULT hres = S_OK;
 
     nsres = nsIDOMWindow_GetFrames(This->nswindow, &nsframes);
-    if(NS_FAILED(nsres)) {
-        FIXME("nsIDOMWindow_GetFrames failed: 0x%08x\n", nsres);
+    if(NS_FAILED(nsres) && !nsframes) {
+        FIXME("nsIDOMWindow_GetFrames failed: 0x%08x\n, nsframes %p", nsres, nsframes);
         return E_FAIL;
     }
 
@@ -495,6 +495,9 @@ static HRESULT WINAPI HTMLWindow2_get_length(IHTMLWindow2 *iface, LONG *p)
         ERR("GetLength failed: %08x\n", nsres);
         return E_FAIL;
     }
+
+    FIXME("haha +1\n");
+    length++;
 
     *p = length;
     return S_OK;

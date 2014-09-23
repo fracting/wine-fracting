@@ -847,8 +847,12 @@ static HRESULT WINAPI HTMLElement_put_language(IHTMLElement *iface, BSTR v)
 static HRESULT WINAPI HTMLElement_get_language(IHTMLElement *iface, BSTR *p)
 {
     HTMLElement *This = impl_from_IHTMLElement(iface);
-    FIXME("(%p)->(%p)\n", This, p);
-    return E_NOTIMPL;
+    WCHAR jscriptW[] = {'\0'};
+    FIXME("haha (%p)->(%p)\n", This, p);
+
+    *p = SysAllocString(jscriptW);
+
+    return S_OK;
 }
 
 static HRESULT WINAPI HTMLElement_put_onselectstart(IHTMLElement *iface, VARIANT v)
