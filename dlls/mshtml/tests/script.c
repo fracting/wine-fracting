@@ -2295,9 +2295,10 @@ static void test_script_run(void)
     dp.rgvarg = &var;
     dp.cNamedArgs = 0;
     dp.rgdispidNamedArgs = NULL;
-    V_VT(&var) = VT_DISPATCH;
-    V_DISPATCH(&var) = (IDispatch*)&funcDisp;
-    hres = IDispatchEx_InvokeEx(document, id, LOCALE_NEUTRAL, INVOKE_PROPERTYPUT, &dp, NULL, &ei, NULL);
+    V_VT(&var) = VT_BYREF|VT_DISPATCH;
+    void *p = (IDispatch*)&funcDisp;
+    V_DISPATCHREF(&var) = &p;
+    hres = IDispatchEx_InvokeEx(document, id, LOCALE_NEUTRAL, INVOKE_PROPERTYPUT | INVOKE_PROPERTYPUTREF, &dp, NULL, &ei, NULL);
     ok(hres == S_OK, "InvokeEx failed: %08x\n", hres);
 
     VariantInit(&var);
