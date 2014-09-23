@@ -1442,12 +1442,15 @@ static HRESULT WINAPI DispatchEx_InvokeEx(IDispatchEx *iface, DISPID id, LCID lc
                 return E_INVALIDARG;
             /* fall through */
         case DISPATCH_METHOD:
-            if(V_VT(&prop->var) != VT_DISPATCH) {
+            if(V_VT(&prop->var) == VT_DISPATCH)
+                return invoke_disp_value(This, V_DISPATCH(&prop->var), lcid, wFlags, pdp, pvarRes, pei, pspCaller);
+            else if(V_VT(&prop->var) == VT_BYREF|VT_DISPATCH)
+                return invoke_disp_value(This, *V_DISPATCHREF(&prop->var), lcid, wFlags, pdp, pvarRes, pei, pspCaller);
+            else {
                 FIXME("invoke %s\n", debugstr_variant(&prop->var));
                 return E_NOTIMPL;
             }
 
-            return invoke_disp_value(This, V_DISPATCH(&prop->var), lcid, wFlags, pdp, pvarRes, pei, pspCaller);
         case DISPATCH_PROPERTYGET:
             if(prop->flags & DYNPROP_DELETED)
                 return DISP_E_UNKNOWNNAME;
