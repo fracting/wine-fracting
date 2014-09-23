@@ -2063,6 +2063,7 @@ static void test_default_arg_conv(IHTMLWindow2 *window)
     IHTMLElement *elem;
     VARIANT v;
     HRESULT hres;
+    int value;
 
     hres = IHTMLWindow2_get_document(window, &doc);
     ok(hres == S_OK, "get_document failed: %08x\n", hres);
@@ -2097,6 +2098,14 @@ static void test_default_arg_conv(IHTMLWindow2 *window)
     ok(hres == S_OK, "InvokeEx failed: %08x\n", hres);
 
     test_elem_disabled(elem, VARIANT_TRUE);
+
+    value = 0;
+    V_VT(&v) = VT_BYREF|VT_I4;
+    V_I4REF(&v) = &value;
+    hres = dispex_propput(dispex, DISPID_IHTMLELEMENT3_DISABLED, DISPATCH_PROPERTYPUTREF, &v, NULL);
+    ok(hres == S_OK, "InvokeEx failed: %08x\n", hres);
+
+    test_elem_disabled(elem, VARIANT_FALSE);
 
     IHTMLElement_Release(elem);
     IDispatchEx_Release(dispex);
@@ -2150,6 +2159,7 @@ static void test_script_run(void)
     DISPID id;
     BSTR tmp;
     HRESULT hres;
+    int value;
 
     static const WCHAR documentW[] = {'d','o','c','u','m','e','n','t',0};
     static const WCHAR testW[] = {'t','e','s','t',0};
@@ -2225,6 +2235,20 @@ static void test_script_run(void)
     ok(hres == S_OK, "InvokeEx failed: %08x\n", hres);
     ok(V_VT(&var) == VT_I4, "V_VT(var)=%d\n", V_VT(&var));
     ok(V_I4(&var) == 200, "V_I4(&var) = %d\n", V_I4(&var));
+
+    value = 150;
+    V_VT(&var) = VT_BYREF|VT_I4;
+    V_I4REF(&var) = &value;
+    hres = dispex_propput(document, id, DISPATCH_PROPERTYPUTREF, &var, NULL);
+    ok(hres == S_OK, "InvokeEx failed: %08x\n", hres);
+
+    VariantInit(&var);
+    memset(&dp, 0, sizeof(dp));
+    memset(&ei, 0, sizeof(ei));
+    hres = IDispatchEx_InvokeEx(document, id, LOCALE_NEUTRAL, INVOKE_PROPERTYGET, &dp, &var, &ei, NULL);
+    ok(hres == S_OK, "InvokeEx failed: %08x\n", hres);
+    ok(V_VT(&var) == (VT_BYREF|VT_I4), "V_VT(var)=%d\n", V_VT(&var));
+    ok(*V_I4REF(&var) == 150, "*V_I4REF(&var) = %d\n", *V_I4REF(&var));
 
     memset(&dp, 0, sizeof(dp));
     memset(&ei, 0, sizeof(ei));
