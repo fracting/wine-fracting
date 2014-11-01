@@ -917,16 +917,17 @@ static HRESULT bind_script_to_text(HTMLInnerWindow *window, IUri *uri, HTMLScrip
 
     case BOM_UTF8:
     default: {
+        UINT cp = bsc->bsc.bom == BOM_UTF8 ? CP_UTF8 : get_document_charset(window->doc);
         DWORD len;
 
-        len = MultiByteToWideChar(CP_UTF8, 0, bsc->buf, bsc->bsc.readed, NULL, 0);
+        len = MultiByteToWideChar(cp, 0, bsc->buf, bsc->bsc.readed, NULL, 0);
         text = heap_alloc((len+1)*sizeof(WCHAR));
         if(!text) {
             hres = E_OUTOFMEMORY;
             break;
         }
 
-        MultiByteToWideChar(CP_UTF8, 0, bsc->buf, bsc->bsc.readed, text, len);
+        MultiByteToWideChar(cp, 0, bsc->buf, bsc->bsc.readed, text, len);
         text[len] = 0;
     }
     }
