@@ -1395,11 +1395,19 @@ static HRESULT WINAPI DispatchEx_GetDispID(IDispatchEx *iface, BSTR bstrName, DW
     DispatchEx *This = impl_from_IDispatchEx(iface);
     dynamic_prop_t *dprop;
     HRESULT hres;
+    IUnknown *out;
 
     TRACE("(%p)->(%s %x %p)\n", This, debugstr_w(bstrName), grfdex, pid);
 
     if(grfdex & ~(fdexNameCaseSensitive|fdexNameCaseInsensitive|fdexNameEnsure|fdexNameImplicit|FDEX_VERSION_MASK))
         FIXME("Unsupported grfdex %x\n", grfdex);
+
+    hres = IDispatchEx_QueryInterface(iface, &IID_IHTMLFormElement, (void **)&out);
+
+    if (SUCCEEDED(hres))
+        hres = HTMLFormElement_get_dispid(iface, bstrName, grfdex, pid);
+    if (SUCCEEDED(hres))
+        return hres;
 
     hres = get_builtin_id(This, bstrName, grfdex, pid);
     if(hres != DISP_E_UNKNOWNNAME)

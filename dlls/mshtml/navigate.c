@@ -2032,7 +2032,8 @@ HRESULT super_navigate(HTMLOuterWindow *window, IUri *uri, DWORD flags, const WC
         if(SUCCEEDED(hres) && eq) {
             IUri_Release(uri_nofrag);
             TRACE("fragment navigate\n");
-            return navigate_fragment(window, uri);
+            FIXME("haha always fresh instead of fragment navigate\n");
+            //return navigate_fragment(window, uri);
         }
     }
 
@@ -2222,13 +2223,17 @@ static HRESULT navigate_uri(HTMLOuterWindow *window, IUri *uri, const WCHAR *dis
 {
     nsWineURI *nsuri;
     HRESULT hres;
+    WCHAR javascriptW[] = {'j','a','v','a','s','c','r','i','p','t',':','\0'};
 
-    TRACE("%s\n", debugstr_w(display_uri));
+    FIXME("%s\n", debugstr_w(display_uri));
 
-    if(window->doc_obj && window->doc_obj->webbrowser && window == window->doc_obj->basedoc.window) {
+    FIXME("haha1\n");
+    if(window->doc_obj && window->doc_obj->webbrowser  &&  (window == window->doc_obj->basedoc.window || !strncmpiW(display_uri, javascriptW, 11))) {
         DWORD post_data_len = request_data ? request_data->post_data_len : 0;
         void *post_data = post_data_len ? request_data->post_data : NULL;
         const WCHAR *headers = request_data ? request_data->headers : NULL;
+
+    FIXME("haha2\n");
 
         if(!(flags & BINDING_REFRESH)) {
             BOOL cancel = FALSE;
@@ -2244,9 +2249,11 @@ static HRESULT navigate_uri(HTMLOuterWindow *window, IUri *uri, const WCHAR *dis
         return super_navigate(window, uri, flags, headers, post_data, post_data_len);
     }
 
+    FIXME("haha3\n");
     if(window->doc_obj && window == window->doc_obj->basedoc.window) {
         BOOL cancel;
 
+    FIXME("haha4\n");
         hres = hlink_frame_navigate(&window->base.inner_window->doc->basedoc, display_uri, NULL, 0, &cancel);
         if(FAILED(hres))
             return hres;
@@ -2257,12 +2264,16 @@ static HRESULT navigate_uri(HTMLOuterWindow *window, IUri *uri, const WCHAR *dis
         }
     }
 
+    FIXME("haha5\n");
     hres = create_doc_uri(window, uri, &nsuri);
     if(FAILED(hres))
         return hres;
 
+    FIXME("haha6\n");
     hres = load_nsuri(window, nsuri, NULL, LOAD_FLAGS_NONE);
+    FIXME("haha7\n");
     nsISupports_Release((nsISupports*)nsuri);
+    FIXME("haha8\n");
     return hres;
 }
 
