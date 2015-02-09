@@ -1034,6 +1034,7 @@ static int WCCURSES_MainLoop(struct inner_data* data)
     return 0;
 }
 
+#define WINE_CONSOLE_FAKE_HWND (HWND)0x434f4e53
 /******************************************************************
  *		WCCURSES_InitBackend
  *
@@ -1058,7 +1059,7 @@ enum init_return WCCURSES_InitBackend(struct inner_data* data)
     data->fnScroll             = WCCURSES_Scroll;
     data->fnSetFont            = WCCURSES_SetFont;
     data->fnDeleteBackend      = WCCURSES_DeleteBackend;
-    data->hWnd                 = NULL;
+    data->hWnd                 = WINE_CONSOLE_FAKE_HWND;
 
     /* FIXME: should find a good way to enable buffer scrolling
      * For the time being, setting this to 1 will allow scrolling up/down 
