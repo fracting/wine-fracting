@@ -223,6 +223,7 @@ static BOOL restore_console_mode(HANDLE hin)
     return ret;
 }
 
+#define WINE_CONSOLE_FAKE_HWND (HWND)0x434f4e53
 /******************************************************************************
  * GetConsoleWindow [KERNEL32.@] Get hwnd of the console window.
  *
@@ -240,6 +241,9 @@ HWND WINAPI GetConsoleWindow(VOID)
         if (!wine_server_call_err(req)) hWnd = wine_server_ptr_handle( reply->win );
     }
     SERVER_END_REQ;
+
+    if(!hWnd)
+       hWnd = WINE_CONSOLE_FAKE_HWND;
 
     return hWnd;
 }
