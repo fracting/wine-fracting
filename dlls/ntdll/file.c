@@ -884,6 +884,33 @@ NTSTATUS WINAPI NtReadFile(HANDLE hFile, HANDLE hEvent,
 
     status = server_get_unix_fd( hFile, FILE_READ_DATA, &unix_handle,
                                  &needs_close, &type, &options );
+
+    if (status == STATUS_BAD_DEVICE_TYPE)
+    {
+        static const WCHAR device_nullW[] = {'\\','D','e','v','i','c','e','\\','N','u','l','l','\0'};
+        UNICODE_STRING device_null_str;
+        OBJECT_NAME_INFORMATION *info;
+        ULONG len = 0;
+
+        NtQueryObject( hFile, ObjectNameInformation, NULL, 0, &len);
+        info = RtlAllocateHeap( GetProcessHeap(), 0, len);
+        status = NtQueryObject( hFile, ObjectNameInformation, info, len, NULL);
+
+        if (status != STATUS_SUCCESS)
+             return status;
+
+        RtlInitUnicodeString(&device_null_str, device_nullW);
+        if (RtlEqualUnicodeString(&info->Name, &device_null_str, TRUE))
+        {
+            FIXME("dirty hack for \\Device\\Null\n");
+            io_status->u.Status = STATUS_SUCCESS;
+            io_status->Information = 0;
+            return STATUS_SUCCESS;
+        }
+        FIXME("Unsupported device %s\n", debugstr_us(&info->Name));
+        return STATUS_NOT_SUPPORTED;
+    }
+
     if (status) return status;
 
     async_read = !(options & (FILE_SYNCHRONOUS_IO_ALERT | FILE_SYNCHRONOUS_IO_NONALERT));
