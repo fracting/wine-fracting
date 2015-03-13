@@ -3097,6 +3097,32 @@ NTSTATUS WINAPI NtSetInformationFile(HANDLE handle, PIO_STATUS_BLOCK io,
             io->u.Status = STATUS_INVALID_PARAMETER_3;
         break;
 
+    case FileRenameInformation:
+        if (len >= sizeof(FILE_RENAME_INFORMATION))
+        {
+            FILE_RENAME_INFORMATION *info = ptr;
+            UNICODE_STRING name_str;
+            ANSI_STRING unix_name;
+
+            name_str.Buffer = info->FileName;
+            name_str.Length = info->FileNameLength;
+            name_str.MaximumLength = info->FileNameLength + sizeof(WCHAR);
+
+            TRACE("name_str %s\n", debugstr_us(&name_str));
+
+            wine_nt_to_unix_file_name( &name_str, &unix_name, FILE_OPEN_IF, FALSE );
+
+            SERVER_START_REQ( rename_file )
+            {
+                req->handle   = wine_server_obj_handle( handle );
+                wine_server_add_data( req, unix_name.Buffer, unix_name.Length);
+                io->u.Status = wine_server_call( req );
+            }
+            SERVER_END_REQ;
+        } else
+            io->u.Status = STATUS_INVALID_PARAMETER_3;
+        break;
+
     default:
         FIXME("Unsupported class (%d)\n", class);
         io->u.Status = STATUS_NOT_IMPLEMENTED;

@@ -1727,6 +1727,12 @@ static void dump_set_file_info_request( const struct set_file_info_request *req 
     fprintf( stderr, ", unlink=%d", req->unlink );
 }
 
+static void dump_rename_file_request( const struct rename_file_request *req )
+{
+    fprintf( stderr, " handle=%04x", req->handle );
+    dump_varargs_string( ", unix_name=", cur_size );
+}
+
 static void dump_create_socket_request( const struct create_socket_request *req )
 {
     fprintf( stderr, " access=%08x", req->access );
@@ -4231,6 +4237,7 @@ static const dump_func req_dumpers[REQ_NB_REQUESTS] = {
     (dump_func)dump_lock_file_request,
     (dump_func)dump_unlock_file_request,
     (dump_func)dump_set_file_info_request,
+    (dump_func)dump_rename_file_request,
     (dump_func)dump_create_socket_request,
     (dump_func)dump_accept_socket_request,
     (dump_func)dump_accept_into_socket_request,
@@ -4497,6 +4504,7 @@ static const dump_func reply_dumpers[REQ_NB_REQUESTS] = {
     (dump_func)dump_get_handle_fd_reply,
     (dump_func)dump_flush_file_reply,
     (dump_func)dump_lock_file_reply,
+    NULL,
     NULL,
     NULL,
     (dump_func)dump_create_socket_reply,
@@ -4767,6 +4775,7 @@ static const char * const req_names[REQ_NB_REQUESTS] = {
     "lock_file",
     "unlock_file",
     "set_file_info",
+    "rename_file",
     "create_socket",
     "accept_socket",
     "accept_into_socket",

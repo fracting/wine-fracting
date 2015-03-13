@@ -160,6 +160,7 @@ DECL_HANDLER(flush_file);
 DECL_HANDLER(lock_file);
 DECL_HANDLER(unlock_file);
 DECL_HANDLER(set_file_info);
+DECL_HANDLER(rename_file);
 DECL_HANDLER(create_socket);
 DECL_HANDLER(accept_socket);
 DECL_HANDLER(accept_into_socket);
@@ -431,6 +432,7 @@ static const req_handler req_handlers[REQ_NB_REQUESTS] =
     (req_handler)req_lock_file,
     (req_handler)req_unlock_file,
     (req_handler)req_set_file_info,
+    (req_handler)req_rename_file,
     (req_handler)req_create_socket,
     (req_handler)req_accept_socket,
     (req_handler)req_accept_into_socket,
@@ -1005,6 +1007,8 @@ C_ASSERT( sizeof(struct unlock_file_request) == 32 );
 C_ASSERT( FIELD_OFFSET(struct set_file_info_request, handle) == 12 );
 C_ASSERT( FIELD_OFFSET(struct set_file_info_request, unlink) == 16 );
 C_ASSERT( sizeof(struct set_file_info_request) == 24 );
+C_ASSERT( FIELD_OFFSET(struct rename_file_request, handle) == 12 );
+C_ASSERT( sizeof(struct rename_file_request) == 16 );
 C_ASSERT( FIELD_OFFSET(struct create_socket_request, access) == 12 );
 C_ASSERT( FIELD_OFFSET(struct create_socket_request, attributes) == 16 );
 C_ASSERT( FIELD_OFFSET(struct create_socket_request, family) == 20 );
