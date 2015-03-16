@@ -2784,6 +2784,101 @@ static void test__wcsset_s(void)
     ok(str[2] == 'b', "str[2] = %d\n", str[2]);
 }
 
+static int is_hira(unsigned int c)
+{
+    if(_getmbcp() != 932)
+        return 0;
+    return (c >= 0x829f && c <= 0x82f1);
+}
+
+static int is_kata(unsigned int c)
+{
+    if(_getmbcp() != 932)
+        return 0;
+    return (c >= 0x8340 && c <= 0x8396 && c != 0x837f);
+}
+
+static unsigned int to_hira(unsigned int c)
+{
+    if(_getmbcp() != 932)
+        return c;
+    if(c < 0x8340 || c > 0x8393 || c == 0x837f)
+        return c;
+    return (c < 0x837f) ? (c - 0xa1) : (c - 0xa2);
+}
+
+static unsigned int to_kata(unsigned int c)
+{
+    if(_getmbcp() != 932)
+        return c;
+    if(c < 0x829f || c > 0x82f1)
+        return c;
+    return (c < 0x82de) ? (c + 0xa1) : (c + 0xa2);
+}
+
+
+static void test_kata_hira(void)
+{
+    unsigned int tests[] = { 0x0000, 0x0065, 0x00a0, 0x00a1, 0x00c0, 0x00df,
+                             0x00e0, 0x1000, 0x2000, 0x3000, 0x4000, 0x5000,
+                             0x6000, 0x7000, 0x8000, 0x829e, 0x829f, 0x82dd,
+                             0x82de, 0x82f1, 0x82f2, 0x833f, 0x8340, 0x835f,
+                             0x837e, 0x837f, 0x8380, 0x838b, 0x8393, 0x8394,
+                             0x8396, 0x8397, 0x9000, 0xa000, 0xb000, 0xc000,
+                             0xd000, 0xe000, 0xf000 };
+    unsigned int i, ret;
+    int val, prev_cp = _getmbcp();
+
+    /* set code page to non-japanese */
+    if(_setmbcp(1252)) {
+        win_skip("Failed to change codepage to 1252, skipping test\n");
+        return;
+    }
+
+    for(i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+
+        val = _ismbchira(tests[i]);
+        ok(!val, "_ismbchira returned %d for %x\n", val, tests[i]);
+
+        val = _ismbckata(tests[i]);
+        ok(!val, "_ismbckata returned %d for %x\n", val, tests[i]);
+
+        ret = _mbctohira(tests[i]);
+        ok(ret == tests[i], "_mbctohira returned %x for %x\n", ret, tests[i]);
+
+        ret = _mbctokata(tests[i]);
+        ok(ret == tests[i], "_mbctokata returned %x for %x\n", ret, tests[i]);
+    }
+
+    /* set code page to japanese */
+    if(_setmbcp(932)) {
+        win_skip("Failed to change codepage to 932, skipping test\n");
+        _setmbcp(prev_cp);
+        return;
+    }
+
+    for(i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+
+        val = _ismbchira(tests[i]);
+        ok(val == is_hira(tests[i]),
+           "_ismbchira returned %d for %x\n", val, tests[i]);
+
+        val = _ismbckata(tests[i]);
+        ok(val == is_kata(tests[i]),
+           "_ismbckata returned %d for %x\n", val, tests[i]);
+
+        ret = _mbctohira(tests[i]);
+        ok(ret == to_hira(tests[i]),
+           "_mbctohira returned %x for %x\n", ret, tests[i]);
+
+        ret = _mbctokata(tests[i]);
+        ok(ret == to_kata(tests[i]),
+           "_mbctokata returned %x for %x\n", ret, tests[i]);
+    }
+
+    _setmbcp(prev_cp);
+}
+
 START_TEST(string)
 {
     char mem[100];
@@ -2888,4 +2983,5 @@ START_TEST(string)
     test_strxfrm();
     test__strnset_s();
     test__wcsset_s();
+    test_kata_hira();
 }

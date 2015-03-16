@@ -732,9 +732,9 @@
 @ stub _mbcjmstojis_l
 @ cdecl _mbclen(ptr)
 @ stub _mbclen_l
-@ stub _mbctohira(long)
+@ cdecl _mbctohira(long)
 @ stub _mbctohira_l
-@ stub _mbctokata(long)
+@ cdecl _mbctokata(long)
 @ stub _mbctokata_l
 @ cdecl _mbctolower(long)
 @ stub _mbctolower_l

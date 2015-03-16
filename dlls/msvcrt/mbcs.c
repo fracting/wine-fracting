@@ -1367,12 +1367,32 @@ int CDECL _ismbckata(unsigned int c)
   /* FIXME: use lc_ctype when supported, not lc_all */
   if(get_mbcinfo()->mbcodepage == 932)
   {
-    if(c < 256)
-      return _ismbbkana(c);
     /* Japanese/Katakana, CP 932 */
     return (c >= 0x8340 && c <= 0x8396 && c != 0x837f);
   }
   return 0;
+}
+
+/*********************************************************************
+ *              _mbctohira(MSVCRT.@)
+ */
+unsigned int CDECL _mbctohira(unsigned int c)
+{
+    if(_ismbckata(c) && c < 0x8394)
+        return (c < 0x837f) ? (c - 0xa1) : (c - 0xa2);
+
+    return c;
+}
+
+/*********************************************************************
+ *              _mbctokata(MSVCRT.@)
+ */
+unsigned int CDECL _mbctokata(unsigned int c)
+{
+    if(_ismbchira(c))
+        return (c < 0x82de) ? (c + 0xa1) : (c + 0xa2);
+
+    return c;
 }
 
 /*********************************************************************
