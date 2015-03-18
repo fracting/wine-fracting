@@ -1805,6 +1805,11 @@ struct fd *open_fd( struct fd *root, const char *name, int flags, mode_t *mode, 
 
     fd->unix_name = dup_fd_name( root, name );
 
+    if (access == 0x00010100)
+    {
+        rw_mode &= ~O_WRONLY;
+        /* FIXME dirty hack for MSYS2 */
+    }
     if ((fd->unix_fd = open( name, rw_mode | (flags & ~O_TRUNC), *mode )) == -1)
     {
         /* if we tried to open a directory for write access, retry read-only */
