@@ -1240,6 +1240,13 @@ enum server_fd_type
 @END
 
 
+/* Link a file */
+@REQ(link_file)
+    obj_handle_t handle;        /* handle to the file */
+    VARARG(unix_name,string);    /* file name */
+@END
+
+
 /* Create a socket */
 @REQ(create_socket)
     unsigned int access;        /* wanted access rights */
