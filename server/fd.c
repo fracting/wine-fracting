@@ -2447,3 +2447,25 @@ DECL_HANDLER(rename_file)
         release_object( fd );
     }
 }
+
+/* link file */
+DECL_HANDLER(link_file)
+{
+    struct fd *fd;
+
+    if ((fd = get_handle_fd_obj( current->process, req->handle, 0 )))
+    {
+        if (fd->unix_name)
+        {
+            char *newpath = mem_alloc( get_req_data_size() + 1 );
+            memcpy( newpath, get_req_data(), get_req_data_size() );
+            newpath[get_req_data_size()] = 0;
+            if (link( fd->unix_name, newpath ))
+            {
+                file_set_error();
+            }
+        }
+        else set_error( STATUS_OBJECT_TYPE_MISMATCH );
+        release_object( fd );
+    }
+}
