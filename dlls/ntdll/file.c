@@ -3506,7 +3506,22 @@ NTSTATUS WINAPI NtQueryVolumeInformationFile( HANDLE handle, PIO_STATUS_BLOCK io
         FIXME( "%p: control info not supported\n", handle );
         break;
     case FileFsFullSizeInformation:
-        FIXME( "%p: full size info not supported\n", handle );
+        if (length < sizeof(FILE_FS_FULL_SIZE_INFORMATION))
+            io->u.Status = STATUS_BUFFER_TOO_SMALL;
+        else
+        {
+            FILE_FS_FULL_SIZE_INFORMATION *info = buffer;
+
+            FIXME( "%p: faking full size info\n", handle );
+            memset(info, 0, sizeof(*info));
+            info->TotalAllocationUnits.u.LowPart = 0x88dead;
+            info->CallerAvailableAllocationUnits.u.LowPart = 0x77dead;
+            info->ActualAvailableAllocationUnits.u.LowPart = 0x77dead;
+            info->SectorsPerAllocationUnit = 0x8; /* copy from my vm */
+            info->BytesPerSector = 0x200;  /* copy from my vm */
+            io->Information = sizeof(*info);
+            io->u.Status = STATUS_SUCCESS;
+        }
         break;
     case FileFsObjectIdInformation:
         FIXME( "%p: object id info not supported\n", handle );

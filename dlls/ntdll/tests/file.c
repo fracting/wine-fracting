@@ -1861,6 +1861,57 @@ todo_wine
     CloseHandle( dir );
 }
 
+static void test_query_fullsize_information_file(void)
+{
+    NTSTATUS status;
+    HANDLE dir;
+    WCHAR path[MAX_PATH];
+    OBJECT_ATTRIBUTES attr;
+    IO_STATUS_BLOCK io;
+    UNICODE_STRING nameW;
+    FILE_FS_FULL_SIZE_INFORMATION *ffsi;
+    BYTE buf[sizeof(FILE_FS_FULL_SIZE_INFORMATION)];
+
+    GetWindowsDirectoryW( path, MAX_PATH );
+    pRtlDosPathNameToNtPathName_U( path, &nameW, NULL, NULL );
+    attr.Length = sizeof(attr);
+    attr.RootDirectory = 0;
+    attr.ObjectName = &nameW;
+    attr.Attributes = OBJ_CASE_INSENSITIVE;
+    attr.SecurityDescriptor = NULL;
+    attr.SecurityQualityOfService = NULL;
+
+    status = pNtOpenFile( &dir, SYNCHRONIZE|FILE_LIST_DIRECTORY, &attr, &io,
+                          FILE_SHARE_READ|FILE_SHARE_WRITE, FILE_DIRECTORY_FILE|FILE_SYNCHRONOUS_IO_NONALERT );
+    ok( !status, "open %s failed %x\n", wine_dbgstr_w(nameW.Buffer), status );
+    pRtlFreeUnicodeString( &nameW );
+
+    ZeroMemory( buf, sizeof(buf) );
+    U(io).Status = 0xdadadada;
+    io.Information = 0xcacacaca;
+
+    status = pNtQueryVolumeInformationFile( dir, &io, buf, sizeof(buf), FileFsFullSizeInformation );
+
+    ffsi = (FILE_FS_FULL_SIZE_INFORMATION *)buf;
+
+    ok(status == STATUS_SUCCESS, "expected STATUS_SUCCESS, got %d\n", status);
+    ok(U(io).Status == STATUS_SUCCESS, "expected STATUS_SUCCESS, got %d\n", U(io).Status);
+
+    ok(io.Information == sizeof(FILE_FS_FULL_SIZE_INFORMATION),
+    "expected %d, got %lu\n", sizeof(FILE_FS_FULL_SIZE_INFORMATION), io.Information);
+
+    trace("all low %08x\n", ffsi->TotalAllocationUnits.u.LowPart);
+    trace("all high %08x\n", ffsi->TotalAllocationUnits.u.HighPart);
+    trace("caller low %08x\n", ffsi->CallerAvailableAllocationUnits.u.LowPart);
+    trace("caller high %08x\n", ffsi->CallerAvailableAllocationUnits.u.HighPart);
+    trace("actual low %08x\n", ffsi->ActualAvailableAllocationUnits.u.LowPart);
+    trace("actual high %08x\n", ffsi->ActualAvailableAllocationUnits.u.HighPart);
+    trace("unit %08x\n", ffsi->SectorsPerAllocationUnit);
+    trace("bytes %08x\n", ffsi->BytesPerSector);
+
+    CloseHandle( dir );
+}
+
 static void test_query_attribute_information_file(void)
 {
     NTSTATUS status;
@@ -2928,6 +2979,7 @@ START_TEST(file)
     test_file_all_name_information();
     test_file_disposition_information();
     test_query_volume_information_file();
+    test_query_fullsize_information_file();
     test_query_attribute_information_file();
     test_junction_points();
 }
