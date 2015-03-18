@@ -2608,7 +2608,7 @@ NTSTATUS WINAPI NtQueryInformationFile( HANDLE hFile, PIO_STATUS_BLOCK io,
         sizeof(FILE_ACCESS_INFORMATION),               /* FileAccessInformation */
         sizeof(FILE_NAME_INFORMATION),                 /* FileNameInformation */
         sizeof(FILE_RENAME_INFORMATION)-sizeof(WCHAR), /* FileRenameInformation */
-        0,                                             /* FileLinkInformation */
+        sizeof(FILE_LINK_INFORMATION),                 /* FileLinkInformation */
         sizeof(FILE_NAMES_INFORMATION)-sizeof(WCHAR),  /* FileNamesInformation */
         sizeof(FILE_DISPOSITION_INFORMATION),          /* FileDispositionInformation */
         sizeof(FILE_POSITION_INFORMATION),             /* FilePositionInformation */
@@ -3122,6 +3122,33 @@ NTSTATUS WINAPI NtSetInformationFile(HANDLE handle, PIO_STATUS_BLOCK io,
         } else
             io->u.Status = STATUS_INVALID_PARAMETER_3;
         break;
+
+    case FileLinkInformation:
+        if (len >= sizeof(FILE_LINK_INFORMATION))
+        {
+            FILE_LINK_INFORMATION *info = ptr;
+            UNICODE_STRING name_str;
+            ANSI_STRING unix_name;
+
+            name_str.Buffer = info->FileName;
+            name_str.Length = info->FileNameLength;
+            name_str.MaximumLength = info->FileNameLength + sizeof(WCHAR);
+
+            TRACE("name_str %s\n", debugstr_us(&name_str));
+
+            wine_nt_to_unix_file_name( &name_str, &unix_name, FILE_OPEN_IF, FALSE );
+
+            SERVER_START_REQ( link_file )
+            {
+                req->handle   = wine_server_obj_handle( handle );
+                wine_server_add_data( req, unix_name.Buffer, unix_name.Length);
+                io->u.Status = wine_server_call( req );
+            }
+            SERVER_END_REQ;
+        } else
+            io->u.Status = STATUS_INVALID_PARAMETER_3;
+        break;
+
 
     default:
         FIXME("Unsupported class (%d)\n", class);
