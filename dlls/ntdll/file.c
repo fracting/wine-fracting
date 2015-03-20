@@ -2724,6 +2724,14 @@ NTSTATUS WINAPI NtQueryInformationFile( HANDLE hFile, PIO_STATUS_BLOCK io,
         if (fd_get_file_info( fd, &st, &attr ) == -1) io->u.Status = FILE_GetNtStatus();
         else fill_file_info( &st, attr, ptr, class );
         break;
+    case FileModeInformation:
+        {
+            FILE_MODE_INFORMATION *info = ptr;
+            FIXME( "%p: faking FileModeInformation\n", hFile );
+            info->Mode = 0;
+            io->u.Status = STATUS_SUCCESS;
+        }
+        break;
     case FileAllInformation:
         {
             FILE_ALL_INFORMATION *info = ptr;
@@ -3045,6 +3053,13 @@ NTSTATUS WINAPI NtSetInformationFile(HANDLE handle, PIO_STATUS_BLOCK io,
             SERVER_END_REQ;
         } else
             io->u.Status = STATUS_INVALID_PARAMETER_3;
+        break;
+
+    case FileModeInformation:
+        {
+            FIXME( "%p: FileModeInformation stub\n", handle );
+            io->u.Status = STATUS_SUCCESS;
+        }
         break;
 
     case FileAllInformation:
