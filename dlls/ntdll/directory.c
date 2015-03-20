@@ -2953,12 +2953,17 @@ NTSTATUS nt_to_unix_file_name_attr( const OBJECT_ATTRIBUTES *attr, ANSI_STRING *
 
     if (!(status = server_get_unix_fd( attr->RootDirectory, 0, &root_fd, &needs_close, &type, NULL )))
     {
-        if (type != FD_TYPE_DIR)
+        if (type == FD_TYPE_FILE && name_len == 0)
         {
-            if (needs_close) close( root_fd );
-            status = STATUS_BAD_DEVICE_TYPE;
+            if(!(status = server_get_unix_name( attr->RootDirectory, unix_name_ret)))
+            {
+                /* FIXME haha */
+                TRACE( "haha %s -> %s\n", debugstr_us(attr->ObjectName), debugstr_an(unix_name_ret->Buffer, unix_name_ret->Length) );
+                return status;
+            }
+
         }
-        else
+        else if (type == FD_TYPE_DIR)
         {
             RtlEnterCriticalSection( &dir_section );
             if ((old_cwd = open( ".", O_RDONLY )) != -1 && fchdir( root_fd ) != -1)
@@ -2971,6 +2976,11 @@ NTSTATUS nt_to_unix_file_name_attr( const OBJECT_ATTRIBUTES *attr, ANSI_STRING *
             RtlLeaveCriticalSection( &dir_section );
             if (old_cwd != -1) close( old_cwd );
             if (needs_close) close( root_fd );
+        }
+        else
+        {
+            if (needs_close) close( root_fd );
+            status = STATUS_BAD_DEVICE_TYPE;
         }
     }
     else if (status == STATUS_OBJECT_TYPE_MISMATCH) status = STATUS_BAD_DEVICE_TYPE;
