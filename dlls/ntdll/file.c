@@ -292,7 +292,10 @@ static NTSTATUS FILE_CreateFile( PHANDLE handle, ACCESS_MASK access, POBJECT_ATT
         return io->u.Status;
     }
 
-    objattr.rootdir = wine_server_obj_handle( attr->RootDirectory );
+    if (attr->ObjectName->Length == 0 && unix_name.Length > 1)
+        objattr.rootdir = 0;
+    else
+        objattr.rootdir = wine_server_obj_handle( attr->RootDirectory );
     objattr.name_len = 0;
     io->u.Status = NTDLL_create_struct_sd( attr->SecurityDescriptor, &sd, &objattr.sd_len );
     if (io->u.Status != STATUS_SUCCESS)
