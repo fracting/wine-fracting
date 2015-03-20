@@ -3607,10 +3607,15 @@ NTSTATUS WINAPI NtQueryEaFile( HANDLE hFile, PIO_STATUS_BLOCK iosb, PVOID buffer
                                BOOLEAN single_entry, PVOID ea_list, ULONG ea_list_len,
                                PULONG ea_index, BOOLEAN restart )
 {
+    FILE_FULL_EA_INFORMATION *info = buffer;
+
     FIXME("(%p,%p,%p,%d,%d,%p,%d,%p,%d) stub\n",
             hFile, iosb, buffer, length, single_entry, ea_list,
             ea_list_len, ea_index, restart);
-    return STATUS_ACCESS_DENIED;
+
+    info->EaValueLength = 0;
+
+    return STATUS_NO_EAS_ON_FILE;
 }
 
 
