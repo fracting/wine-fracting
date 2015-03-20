@@ -496,13 +496,18 @@ NTSTATUS WINAPI LsaLookupSids(
     }
     (*ReferencedDomains)->Entries = 0;
     (*ReferencedDomains)->Domains = (LSA_TRUST_INFORMATION*)((char*)*ReferencedDomains + sizeof(LSA_REFERENCED_DOMAIN_LIST));
+    (*ReferencedDomains)->Domains[0].Name.Length = 0;
+    (*ReferencedDomains)->Domains[0].Name.MaximumLength = 0;
+    (*ReferencedDomains)->Domains[0].Name.Buffer = NULL;
 
     /* Get full names data length and full length needed to store domain name and SID */
     for (i = 0; i < Count; i++)
     {
         (*Names)[i].Use = SidTypeUnknown;
-        (*Names)[i].DomainIndex = -1;
+        (*Names)[i].DomainIndex = 0;
         (*Names)[i].Name.Buffer = NULL;
+        (*Names)[i].Name.Length = 0;
+        (*Names)[i].Name.MaximumLength = 0;
 
         memset(&(*ReferencedDomains)->Domains[i], 0, sizeof(LSA_TRUST_INFORMATION));
 
