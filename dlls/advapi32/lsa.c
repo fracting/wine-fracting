@@ -311,6 +311,31 @@ static BOOL lookup_name( LSA_UNICODE_STRING *name, SID *sid, DWORD *sid_size, WC
     return ret;
 }
 
+/* Create a prefix SID by duplicating an SID and stripping away last SubAuthority,
+   expect to waste sizeof(SubAuthority[0]) of memory.
+
+   Parameters:
+       sid           [I]  An SID like S-1-5-32-544
+
+   Return:
+                     An SID like S-1-5-32
+                     Should be freed by Caller using LocalFree().
+*/
+
+static PSID create_prefix_from_sid( PSID sid )
+{
+    DWORD sid_size, scnt;
+    PSID prefix_sid;
+
+    sid_size = GetLengthSid(sid);
+    prefix_sid = LocalAlloc(0, sid_size);
+    CopySid(sid_size, prefix_sid, sid);
+    scnt = *GetSidSubAuthorityCount(prefix_sid);
+    *GetSidSubAuthorityCount(prefix_sid) = scnt - 1;
+
+    return prefix_sid;
+}
+
 /* Adds domain info to referenced domain list.
    Domain list is stored as plain buffer, layout is:
 
@@ -325,20 +350,19 @@ static BOOL lookup_name( LSA_UNICODE_STRING *name, SID *sid, DWORD *sid_size, WC
    Parameters:
        list   [I]  referenced list pointer
        domain [I]  domain name string
+       sid    [I]  domain sid
        data   [IO] pointer to domain data array
 */
-static LONG lsa_reflist_add_domain(LSA_REFERENCED_DOMAIN_LIST *list, LSA_UNICODE_STRING *domain, char **data)
+
+static LONG lsa_reflist_add_domain(LSA_REFERENCED_DOMAIN_LIST *list, LSA_UNICODE_STRING *domain, PSID sid, char **data)
 {
-    ULONG sid_size = 0,domain_size = 0;
-    BOOL handled = FALSE;
-    SID_NAME_USE use;
+    ULONG sid_size = 0;
     LONG i;
 
     for (i = 0; i < list->Entries; i++)
     {
         /* try to reuse index */
-        if ((list->Domains[i].Name.Length == domain->Length) &&
-            (!strncmpiW(list->Domains[i].Name.Buffer, domain->Buffer, (domain->Length / sizeof(WCHAR)))))
+        if (EqualSid(list->Domains[i].Sid, sid))
         {
             return i;
         }
@@ -353,9 +377,8 @@ static LONG lsa_reflist_add_domain(LSA_REFERENCED_DOMAIN_LIST *list, LSA_UNICODE
 
     /* get and store SID data */
     list->Domains[list->Entries].Sid = *data;
-    lookup_name(domain, NULL, &sid_size, NULL, &domain_size, &use, &handled);
-    domain_size = 0;
-    lookup_name(domain, list->Domains[list->Entries].Sid, &sid_size, NULL, &domain_size, &use, &handled);
+    sid_size = GetLengthSid(sid);
+    CopySid(sid_size, list->Domains[list->Entries].Sid, sid);
     *data += sid_size;
 
     return list->Entries++;
@@ -441,9 +464,11 @@ NTSTATUS WINAPI LsaLookupNames2( LSA_HANDLE policy, ULONG flags, ULONG count,
             sid_size_total -= sid_size;
             if (domain_size)
             {
+                PSID domain_sid = create_prefix_from_sid(sid);
                 domain.Length = domain_size * sizeof(WCHAR);
                 domain.MaximumLength = (domain_size + 1) * sizeof(WCHAR);
-                (*sids)[i].DomainIndex = lsa_reflist_add_domain(*domains, &domain, &domain_data);
+                (*sids)[i].DomainIndex = lsa_reflist_add_domain(*domains, &domain, domain_sid, &domain_data);
+                LocalFree(domain_sid);
             }
         }
     }
@@ -602,7 +627,9 @@ NTSTATUS WINAPI LsaLookupSids(
 
             if (domain_size)
             {
-                (*Names)[i].DomainIndex = lsa_reflist_add_domain(*ReferencedDomains, &domain, &domain_data);
+                PSID domain_sid = create_prefix_from_sid(Sids[i]);
+                (*Names)[i].DomainIndex = lsa_reflist_add_domain(*ReferencedDomains, &domain, domain_sid, &domain_data);
+                LocalFree(domain_sid);
                 heap_free(domain.Buffer);
             }
         }
