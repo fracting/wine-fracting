@@ -25,6 +25,7 @@
 #define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
+#include "winternl.h"
 #include "winreg.h"
 #include "ntsecapi.h"
 #include "sddl.h"
@@ -42,6 +43,7 @@ static NTSTATUS (WINAPI *pLsaFreeMemory)(PVOID);
 static NTSTATUS (WINAPI *pLsaOpenPolicy)(PLSA_UNICODE_STRING,PLSA_OBJECT_ATTRIBUTES,ACCESS_MASK,PLSA_HANDLE);
 static NTSTATUS (WINAPI *pLsaQueryInformationPolicy)(LSA_HANDLE,POLICY_INFORMATION_CLASS,PVOID*);
 static BOOL     (WINAPI *pConvertSidToStringSidA)(PSID,LPSTR*);
+static BOOL     (WINAPI *pConvertSidToStringSidW)(PSID,LPWSTR*);
 static NTSTATUS (WINAPI *pLsaLookupNames2)(LSA_HANDLE,ULONG,ULONG,PLSA_UNICODE_STRING,PLSA_REFERENCED_DOMAIN_LIST*,PLSA_TRANSLATED_SID2*);
 static NTSTATUS (WINAPI *pLsaLookupSids)(LSA_HANDLE,ULONG,PSID*,LSA_REFERENCED_DOMAIN_LIST**,LSA_TRANSLATED_NAME**);
 
@@ -55,6 +57,7 @@ static BOOL init(void)
     pLsaOpenPolicy = (void*)GetProcAddress(hadvapi32, "LsaOpenPolicy");
     pLsaQueryInformationPolicy = (void*)GetProcAddress(hadvapi32, "LsaQueryInformationPolicy");
     pConvertSidToStringSidA = (void*)GetProcAddress(hadvapi32, "ConvertSidToStringSidA");
+    pConvertSidToStringSidW = (void*)GetProcAddress(hadvapi32, "ConvertSidToStringSidW");
     pLsaLookupNames2 = (void*)GetProcAddress(hadvapi32, "LsaLookupNames2");
     pLsaLookupSids = (void*)GetProcAddress(hadvapi32, "LsaLookupSids");
 
@@ -354,17 +357,35 @@ static void test_LsaLookupNames2(void)
     ok(status == STATUS_SUCCESS, "LsaClose() failed, returned 0x%08x\n", status);
 }
 
+static inline int strncmpW( const WCHAR *str1, const WCHAR *str2, int n )
+{
+    if (n <= 0) return 0;
+    while ((--n > 0) && *str1 && (*str1 == *str2)) { str1++; str2++; }
+    return *str1 - *str2;
+}
+
+LPCSTR debugstr_us( const UNICODE_STRING *us )
+{
+    if (!us) return "<null>";
+    return wine_dbgstr_wn(us->Buffer, us->Length / sizeof(WCHAR));
+}
+
 static void test_LsaLookupSids(void)
 {
-    LSA_REFERENCED_DOMAIN_LIST *list;
+    LSA_REFERENCED_DOMAIN_LIST *list, *list2;
     LSA_OBJECT_ATTRIBUTES attrs;
     LSA_TRANSLATED_NAME *names;
+    LSA_TRANSLATED_SID2 *sids;
+    UNICODE_STRING *uni_names;
     LSA_HANDLE policy;
     TOKEN_USER *user;
+    TOKEN_GROUPS *grps;
+    PSID grp_sids[257];
     NTSTATUS status;
     HANDLE token;
     DWORD size;
     BOOL ret;
+    int id;
 
     memset(&attrs, 0, sizeof(attrs));
     attrs.Length = sizeof(attrs);
@@ -398,6 +419,108 @@ static void test_LsaLookupSids(void)
     pLsaFreeMemory(list);
 
     HeapFree(GetProcessHeap(), 0, user);
+
+    if (!pLsaLookupNames2)
+    {
+        win_skip("LsaLookupNames2 not available\n");
+        return;
+    }
+
+    /* Test Sids Enumerated from TokenGroups */
+
+    ret = GetTokenInformation(token, TokenGroups, NULL, 0, &size);
+    ok(!ret, "got %d\n", ret);
+
+    grps = HeapAlloc(GetProcessHeap(), 0, size);
+    ret = GetTokenInformation(token, TokenGroups, grps, size, &size);
+    ok(ret, "got %d\n", ret);
+
+    for (id = 0; id < grps->GroupCount; id++)
+        grp_sids[id] = grps->Groups[id].Sid;
+
+    status = pLsaLookupSids(policy, grps->GroupCount, grp_sids, &list, &names);
+    ok(status == STATUS_SUCCESS || status == STATUS_SOME_NOT_MAPPED, "got 0x%08x\n", status);
+
+    uni_names = HeapAlloc(GetProcessHeap(), 0, grps->GroupCount * sizeof(UNICODE_STRING));
+    for (id = 0; id < grps->GroupCount; id++)
+        memcpy(&uni_names[id], &names[id].Name, sizeof(UNICODE_STRING));
+
+    status = pLsaLookupNames2(policy, 0, grps->GroupCount, uni_names, &list2, &sids);
+    ok(status == STATUS_SUCCESS || status == STATUS_SOME_NOT_MAPPED, "got 0x%08x\n", status);
+
+    ok(list->Entries > 0, "got %d\n", list->Entries);
+    ok(list2->Entries > 0, "got %d\n", list2->Entries);
+    ok(list->Entries == list2->Entries, "Entries not match, list %d, list2 %d\n", list->Entries, list2->Entries);
+
+    for (id = 0; id < grps->GroupCount; id++)
+    {
+        WCHAR *grp_strsid, *dom_strsid;
+        PSID dom_sid;
+
+        dom_sid = list->Domains[names[id].DomainIndex].Sid;
+        pConvertSidToStringSidW(dom_sid, &dom_strsid);
+        pConvertSidToStringSidW(grp_sids[id], &grp_strsid);
+
+        ok(names[id].DomainIndex == sids[id].DomainIndex,
+           "DomainIndex not match, names index %d, sids index %d\n", names[id].DomainIndex, sids[id].DomainIndex);
+        ok(names[id].Use == sids[id].Use,
+           "Use not match, names use %08x, sids use %08x\n", names[id].Use, sids[id].Use);
+
+        if (names[id].DomainIndex == -1)
+        {
+            UNICODE_STRING sid_str;
+
+            ok(names[id].Use == SidTypeUnknown, "expect SidTypeUnknown, returns %08x\n", names[id].Use);
+            ok(!IsValidSid(dom_sid), "unexpected domain sid %p\n", dom_sid);
+            RtlInitUnicodeString(&sid_str, grp_strsid);
+            ok(RtlEqualUnicodeString(&sid_str, &names[id].Name, FALSE),
+               "expected %s, returned %s\n", wine_dbgstr_w(grp_strsid), debugstr_us(&names[id].Name));
+            ok(!IsValidSid(sids[id].Sid), "unexpected sid %p\n", sids[id].Sid);
+            ok(!IsValidSid(list2->Domains[sids[id].DomainIndex].Sid), "unexpected domain sid %p\n", list2->Domains[sids[id].DomainIndex].Sid);
+        }
+        else
+        {
+            int grp_scnt, dom_scnt;
+
+            if (names[id].DomainIndex == 0)
+            {
+                static const WCHAR everyoneW[] = {'E','v','e','r','y','o','n','e','\0'};
+                UNICODE_STRING empty_str;
+
+                ok(names[id].Use == SidTypeWellKnownGroup, "expect SidTypeWellKnownGroup, returns %08x\n", names[id].Use);
+                ok(!strncmpW(everyoneW, names[id].Name.Buffer, names[id].Name.Length / sizeof(WCHAR)),
+                   "exptected \"Everyone\", returned %s\n", debugstr_us(&names[id].Name));
+                RtlInitUnicodeString(&empty_str, NULL);
+                ok(RtlEqualUnicodeString(&empty_str, &list->Domains[names[id].DomainIndex].Name, FALSE),
+                   "expected (empty), returned %s\n", debugstr_us(&list->Domains[names[id].DomainIndex].Name));
+            }
+
+            /* Group SID is in form of S-1-5-32-544, Domain SID is in form of S-1-5-32.
+               This test confirm that Domain SID is a substring of Group SID. */
+            grp_scnt = *RtlSubAuthorityCountSid(grp_sids[id]);
+            dom_scnt = *RtlSubAuthorityCountSid(dom_sid);
+            ok(grp_scnt == dom_scnt + 1, "SubAuthorityCount not match, group %d, domain %d\n", grp_scnt, dom_scnt);
+            ok(grp_strsid && dom_strsid && !strncmpW(grp_strsid, dom_strsid, lstrlenW(dom_strsid) - 1),
+               "StringSID not match, group %s, domain %s\n", wine_dbgstr_w(grp_strsid), wine_dbgstr_w(dom_strsid));
+
+            ok(EqualSid(grp_sids[id], sids[id].Sid), "group SID not match\n");
+            ok(RtlEqualUnicodeString(&list->Domains[names[id].DomainIndex].Name, &list2->Domains[sids[id].DomainIndex].Name, FALSE),
+               "Domain name not match, list name %s, list2 name %s\n",
+               debugstr_us(&list->Domains[names[id].DomainIndex].Name),
+               debugstr_us(&list2->Domains[sids[id].DomainIndex].Name));
+            ok(EqualSid(list->Domains[sids[id].DomainIndex].Sid, list2->Domains[sids[id].DomainIndex].Sid), "list SID not match\n");
+        }
+
+        LocalFree(grp_strsid);
+        LocalFree(dom_strsid);
+    }
+
+    pLsaFreeMemory(names);
+    pLsaFreeMemory(list);
+    pLsaFreeMemory(sids);
+    pLsaFreeMemory(list2);
+
+    HeapFree(GetProcessHeap(), 0, grps);
 
     CloseHandle(token);
 
