@@ -457,6 +457,8 @@ NTSTATUS WINAPI LsaLookupNames2( LSA_HANDLE policy, ULONG flags, ULONG count,
         lookup_name( &names[i], sid, &sid_size, domain.Buffer, &domain_size, &use, &handled );
         if (handled)
         {
+            PSID domain_sid = create_prefix_from_sid(sid);
+
             (*sids)[i].Sid = sid;
             (*sids)[i].Use = use;
 
@@ -464,12 +466,15 @@ NTSTATUS WINAPI LsaLookupNames2( LSA_HANDLE policy, ULONG flags, ULONG count,
             sid_size_total -= sid_size;
             if (domain_size)
             {
-                PSID domain_sid = create_prefix_from_sid(sid);
                 domain.Length = domain_size * sizeof(WCHAR);
                 domain.MaximumLength = (domain_size + 1) * sizeof(WCHAR);
-                (*sids)[i].DomainIndex = lsa_reflist_add_domain(*domains, &domain, domain_sid, &domain_data);
-                LocalFree(domain_sid);
             }
+            else
+            {
+                RtlInitUnicodeString(&domain, NULL);
+            }
+            (*sids)[i].DomainIndex = lsa_reflist_add_domain(*domains, &domain, domain_sid, &domain_data);
+            LocalFree(domain_sid);
         }
     }
     heap_free(domain.Buffer);
@@ -612,6 +617,8 @@ NTSTATUS WINAPI LsaLookupSids(
         if (!LookupAccountSidW(NULL, Sids[i], NULL, &name_size, NULL, &domain_size, &use) &&
             GetLastError() == ERROR_INSUFFICIENT_BUFFER)
         {
+            PSID domain_sid = create_prefix_from_sid(Sids[i]);
+
             mapped++;
 
             if (domain_size)
@@ -620,16 +627,19 @@ NTSTATUS WINAPI LsaLookupSids(
                 domain.MaximumLength = domain_size * sizeof(WCHAR);
                 domain.Buffer = heap_alloc(domain.MaximumLength);
             }
+            else
+            {
+                RtlInitUnicodeStringEx(&domain, NULL);
+            }
 
             (*Names)[i].Name.Buffer = name_buffer;
             LookupAccountSidW(NULL, Sids[i], (*Names)[i].Name.Buffer, &name_size, domain.Buffer, &domain_size, &use);
             (*Names)[i].Use = use;
+            (*Names)[i].DomainIndex = lsa_reflist_add_domain(*ReferencedDomains, &domain, domain_sid, &domain_data);
+            LocalFree(domain_sid);
 
             if (domain_size)
             {
-                PSID domain_sid = create_prefix_from_sid(Sids[i]);
-                (*Names)[i].DomainIndex = lsa_reflist_add_domain(*ReferencedDomains, &domain, domain_sid, &domain_data);
-                LocalFree(domain_sid);
                 heap_free(domain.Buffer);
             }
         }
