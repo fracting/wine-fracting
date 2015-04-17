@@ -3015,6 +3015,7 @@ NTSTATUS CDECL wine_nt_to_unix_file_name( const UNICODE_STRING *nameW, ANSI_STRI
 {
     static const WCHAR unixW[] = {'u','n','i','x'};
     static const WCHAR pipeW[] = {'p','i','p','e'};
+    static const WCHAR recyclerW[] = {'R','E','C','Y','C','L','E','R'};
     static const WCHAR invalid_charsW[] = { INVALID_NT_CHARS, 0 };
 
     NTSTATUS status = STATUS_SUCCESS;
@@ -3029,6 +3030,18 @@ NTSTATUS CDECL wine_nt_to_unix_file_name( const UNICODE_STRING *nameW, ANSI_STRI
 
     name     = nameW->Buffer;
     name_len = nameW->Length / sizeof(WCHAR);
+
+    RtlInitAnsiString(unix_name_ret, NULL);
+    if (name_len >= sizeof(recyclerW) / sizeof(WCHAR) && !memcmp(name, recyclerW, sizeof(recyclerW)))
+    {
+        FIXME("haha hack for recycler\n");
+        unix_name_ret->Buffer = RtlAllocateHeap( GetProcessHeap(), 0, strlen(config_dir) + sizeof("/.wine-trash")); /* FIXME dirty hack */
+        strcpy(unix_name_ret->Buffer, config_dir);
+        strcat(unix_name_ret->Buffer, "/.wine-trash");
+        unix_name_ret->Length = strlen(unix_name_ret->Buffer);
+        unix_name_ret->MaximumLength= unix_name_ret->Length + 1;
+        return status;
+    }
 
     if (!name_len || !IS_SEPARATOR(name[0])) return STATUS_OBJECT_PATH_SYNTAX_BAD;
 
