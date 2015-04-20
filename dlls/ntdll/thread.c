@@ -571,8 +571,8 @@ NTSTATUS WINAPI RtlCreateUserThread( HANDLE process, const SECURITY_DESCRIPTOR *
     if ((status = virtual_alloc_thread_stack( teb, stack_reserve, stack_commit ))) goto error;
 
     pthread_attr_init( &attr );
-    pthread_attr_setstack( &attr, teb->DeallocationStack,
-                           (char *)teb->Tib.StackBase - (char *)teb->DeallocationStack );
+    //pthread_attr_setstack( &attr, teb->DeallocationStack,
+    //                       (char *)teb->Tib.StackBase - (char *)teb->DeallocationStack );
     pthread_attr_setscope( &attr, PTHREAD_SCOPE_SYSTEM ); /* force creating a kernel thread */
     interlocked_xchg_add( &nb_threads, 1 );
     if (pthread_create( &pthread_id, &attr, (void * (*)(void *))start_thread, info ))
