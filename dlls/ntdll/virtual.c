@@ -308,7 +308,7 @@ static struct file_view *VIRTUAL_FindView( const void *addr, size_t size )
  */
 static inline UINT_PTR get_mask( ULONG zero_bits )
 {
-    if (!zero_bits) return 0x0fff;  /* allocations are aligned to 64K by default */ /* FIXME haha is this related to commit_size ? */
+    if (!zero_bits) return 0xffff;  /* allocations are aligned to 64K by default */
     if (zero_bits < page_shift) zero_bits = page_shift;
     return (1 << zero_bits) - 1;
 }
