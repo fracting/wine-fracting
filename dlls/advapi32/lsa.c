@@ -655,6 +655,8 @@ NTSTATUS WINAPI LsaLookupSids(
                 memcpy((*Names)[i].Name.Buffer, strsid, (*Names)[i].Name.MaximumLength);
 
                 LocalFree(strsid);
+
+                mapped++;
             }
         }
 
