@@ -288,12 +288,9 @@ NtQuerySecurityObject(
                     *ResultLength = sizeof(SECURITY_DESCRIPTOR_RELATIVE);
                     if (Length >= *ResultLength)
                     {
-                        FIXME("haha evil and wrong hack\n");
                         memset(psd, 0, sizeof(*psd));
                         psd->Revision = SECURITY_DESCRIPTOR_REVISION;
                         psd->Control = SE_SELF_RELATIVE;
-                        status = STATUS_UNSUCCESSFUL;
-                        /* FIXME: this is a dirty hack to workaround crashing in newer version of MSYS2/Cygwin, it is completly wrong, not sure for how to fix real problem yet, maybe in netapi32 */
                     }
                     else
                         status = STATUS_BUFFER_TOO_SMALL;
