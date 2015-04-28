@@ -2185,8 +2185,59 @@ NetUserGetInfo(LPCWSTR servername, LPCWSTR username, DWORD level,
         ui->usri1_script_path[0] = 0;
         break;
       }
-    case 2:
+
     case 3:
+      {
+        static const WCHAR homedirW[] = {'H','O','M','E',0};
+        PUSER_INFO_3 ui;
+        PUSER_INFO_0 ui0;
+        /* sizes of the field buffers in WCHARS */
+        int name_sz, password_sz, home_dir_sz, comment_sz, script_path_sz;
+
+        password_sz = 1; /* not filled out for security reasons for NetUserGetInfo*/
+        comment_sz = 1;
+        script_path_sz = 1;
+
+       /* get data */
+        status = NetUserGetInfo(servername, username, 0, (LPBYTE *) &ui0);
+        if (status != NERR_Success)
+        {
+            NetApiBufferFree(ui0);
+            return status;
+        }
+        name_sz = lstrlenW(ui0->usri0_name) + 1;
+        home_dir_sz = GetEnvironmentVariableW(homedirW, NULL,0);
+        /* set up buffer */
+        NetApiBufferAllocate(sizeof(USER_INFO_3) +
+                             (name_sz + password_sz + home_dir_sz +
+                              comment_sz + script_path_sz) * sizeof(WCHAR),
+                             (LPVOID *) bufptr);
+
+        ui = (PUSER_INFO_3) *bufptr;
+        ui->usri3_name = (LPWSTR) (ui + 1);
+        ui->usri3_password = ui->usri3_name + name_sz;
+        ui->usri3_home_dir = ui->usri3_password + password_sz;
+        ui->usri3_comment = ui->usri3_home_dir + home_dir_sz;
+        ui->usri3_script_path = ui->usri3_comment + comment_sz;
+        /* set data */
+        lstrcpyW(ui->usri3_name, ui0->usri0_name);
+        NetApiBufferFree(ui0);
+        ui->usri3_password[0] = 0;
+        ui->usri3_password_age = 0;
+        ui->usri3_priv = 0;
+        GetEnvironmentVariableW(homedirW, ui->usri3_home_dir,home_dir_sz);
+        ui->usri3_comment[0] = 0;
+        ui->usri3_flags = 0;
+        ui->usri3_script_path[0] = 0;
+
+        /* ui3 */
+        ui->usri3_user_id = 1000; /* FIXME haha hack */
+        ui->usri3_primary_group_id = 0x201; /* 513 FIXME haha hack */
+
+        break;
+      }
+
+    case 2:
     case 4:
     case 11:
     case 20:
